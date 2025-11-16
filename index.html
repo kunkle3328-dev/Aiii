@@ -1,0 +1,59 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MetaHuman LIVE AI Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'primary-dark': '#0a0a0a',
+              'secondary-dark': '#1a1a1a',
+              'accent-cyan': '#00ffff',
+              'accent-magenta': '#ff00ff',
+            },
+            keyframes: {
+              'gradient-pan': {
+                '0%': { backgroundPosition: '0% 50%' },
+                '50%': { backgroundPosition: '100% 50%' },
+                '100%': { backgroundPosition: '0% 50%' },
+              },
+              'pulse-glow': {
+                '0%, 100%': { boxShadow: '0 0 5px #00ffff, 0 0 10px #00ffff' },
+                '50%': { boxShadow: '0 0 20px #00ffff, 0 0 30px #00ffff' },
+              }
+            },
+            animation: {
+              'gradient-pan': 'gradient-pan 10s ease infinite',
+              'pulse-glow': 'pulse-glow 2s infinite ease-in-out',
+            }
+          },
+        },
+      }
+    </script>
+<script type="importmap">
+{
+  "imports": {
+    "@react-three/fiber": "https://aistudiocdn.com/@react-three/fiber@^9.4.0",
+    "@react-three/drei": "https://aistudiocdn.com/@react-three/drei@^10.7.7",
+    "three": "https://aistudiocdn.com/three@^0.181.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-primary-dark text-white">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
