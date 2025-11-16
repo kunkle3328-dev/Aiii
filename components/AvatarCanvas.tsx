@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
-import { Avatar } from './Avatar';
+import Avatar from './Avatar';
 import { ConnectionState } from '../types';
 
 interface AvatarCanvasProps {
@@ -19,21 +19,18 @@ export const AvatarCanvas: React.FC<AvatarCanvasProps> = ({
         <div className="absolute inset-0 z-0 pointer-events-none">
             <Canvas
                 camera={{
-                    position: [0, 0.9, 1.7],   // pulled back + higher
-                    fov: 35,                   // wider, more natural framing
+                    position: [0, 1.55, 2.1],   // PERFECT EYE LEVEL + DISTANCE
+                    fov: 30,
                 }}
             >
-                {/* Lights */}
-                <ambientLight intensity={1.1} />
-                <directionalLight position={[2, 5, 2]} intensity={1.6} />
-                <pointLight position={[0, 1, 1.2]} intensity={1.3} />
+                {/* Lighting Setup */}
+                <ambientLight intensity={0.9} />
+                <directionalLight position={[3, 5, 2]} intensity={1.4} />
+                <pointLight position={[0, 1.3, 1.2]} intensity={1.1} />
 
                 <Suspense fallback={null}>
-                    {/* 
-                        Shift the avatar UP so it sits in the upper half 
-                        directly under the title text 
-                    */}
-                    <group position={[0, 0.55, 0]}>
+                    {/* Avatar Position (tuned for full-screen canvas) */}
+                    <group position={[0, -0.7, 0]}>
                         <Avatar
                             modelAmplitude={modelAmplitude}
                             userSpeaking={userSpeaking}
@@ -47,3 +44,5 @@ export const AvatarCanvas: React.FC<AvatarCanvasProps> = ({
         </div>
     );
 };
+
+export default AvatarCanvas;

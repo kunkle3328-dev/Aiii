@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ConnectionState, TranscriptEntry, ActivePanel } from '../types';
 import { Transcript } from './Transcript';
@@ -6,6 +5,7 @@ import { Controls } from './Controls';
 import { ToolsPanel } from './ToolsPanel';
 import { MemoryPanel } from './MemoryPanel';
 import { SettingsPanel } from './SettingsPanel';
+import { SearchPanel } from './SearchPanel';
 import { useAppContext } from '../context/AppContext';
 
 interface UIProps {
@@ -42,9 +42,8 @@ export const UI: React.FC<UIProps> = (props) => {
 
     return (
         <div className="relative z-10 flex flex-col h-full text-white pointer-events-none">
-            <div className="w-full flex-grow flex flex-col overflow-hidden p-4 md:px-8">
-                <Transcript transcript={props.transcript} />
-            </div>
+            {/* Empty div pushes controls to the bottom */}
+            <div className="flex-grow" />
 
             <div className="w-full pt-4 px-4 pb-4 md:px-8 md:pb-8 pointer-events-auto">
                 <Controls {...props} />
@@ -53,6 +52,9 @@ export const UI: React.FC<UIProps> = (props) => {
             <div className="pointer-events-auto">
                 <PanelWrapper title="Tools" panelId="tasks">
                     <ToolsPanel />
+                </PanelWrapper>
+                 <PanelWrapper title="Search Results" panelId="search">
+                    <SearchPanel />
                 </PanelWrapper>
                 <PanelWrapper title="Long-Term Memory" panelId="memory">
                     <MemoryPanel />

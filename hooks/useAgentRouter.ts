@@ -4,7 +4,7 @@
 import { useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { useAppContext } from '../context/AppContext';
-import { Task, Note, CalendarEvent } from '../types';
+import { Task, Note, CalendarEvent, SearchResult } from '../types';
 
 export const useAgentRouter = () => {
     const { state, dispatch } = useAppContext();
@@ -35,7 +35,7 @@ Determine the correct agent and action.
 - For calendar, use "calendar" agent. Actions: "add", "list".
 - For memory updates, use "memory" agent. Action: "update".
 - For general conversation, use "conversation" agent. Action: "chat".
-- For search queries, use "search" agent. Action: "query".
+- For search queries about recent events, trending topics, or information that needs to be up-to-date, use "search" agent. Action: "query".
 
 If adding a task, note or event, generate a suitable title and content.
 If adding a calendar event, infer start and end times. Assume duration is 1 hour if not specified.
@@ -57,7 +57,7 @@ If updating memory, specify the key and new value.
                                 type: Type.OBJECT,
                                 properties: {
                                     id: { type: Type.STRING, description: "ID of item to modify" },
-                                    text: { type: Type.STRING, description: "Content for task or note" },
+                                    text: { type: Type.STRING, description: "Content for task, note, or search query" },
                                     title: { type: Type.STRING, description: "Title for note or event" },
                                     start: { type: Type.STRING, description: "ISO date string for event start" },
                                     end: { type: Type.STRING, description: "ISO date string for event end" },
@@ -108,8 +108,30 @@ If updating memory, specify the key and new value.
                     // Handled by the live agent
                     break;
                 case 'search':
-                     // Placeholder for search tool integration
-                    console.log("Search query:", payload.text);
+                    if (action === 'query' && payload.text) {
+                        dispatch({ type: 'SET_ACTIVE_PANEL', payload: 'search' });
+                        dispatch({ type: 'SEARCH_START' });
+                        try {
+                            const searchResponse = await aiRef.current.models.generateContent({
+                                model: "gemini-2.5-flash",
+                                contents: payload.text,
+                                config: {
+                                    tools: [{googleSearch: {}}],
+                                },
+                            });
+                            const text = searchResponse.text;
+                            const groundingChunks = searchResponse.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+                            const sources = groundingChunks
+                                .map(chunk => chunk.web)
+                                .filter((source): source is { uri: string, title: string } => !!source && !!source.uri);
+
+                            const result: SearchResult = { text, sources };
+                            dispatch({ type: 'SEARCH_SUCCESS', payload: result });
+                        } catch(e) {
+                            console.error("Search API call failed", e);
+                            dispatch({ type: 'SEARCH_ERROR', payload: 'An error occurred during the search.' });
+                        }
+                    }
                     break;
             }
 

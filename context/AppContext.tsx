@@ -26,6 +26,11 @@ const initialState: AppState = {
     settings: defaultSettings,
     activePanel: null,
     activeToolTab: 'tasks',
+    searchState: {
+        isLoading: false,
+        result: null,
+        error: null,
+    },
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -66,6 +71,12 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, activePanel: state.activePanel === action.payload ? null : action.payload };
         case 'SET_ACTIVE_TOOL_TAB':
             return { ...state, activeToolTab: action.payload };
+        case 'SEARCH_START':
+            return { ...state, searchState: { isLoading: true, result: null, error: null } };
+        case 'SEARCH_SUCCESS':
+            return { ...state, searchState: { isLoading: false, result: action.payload, error: null } };
+        case 'SEARCH_ERROR':
+            return { ...state, searchState: { isLoading: false, result: null, error: action.payload } };
         case 'LOAD_STATE':
             return { ...state, ...action.payload };
         default:

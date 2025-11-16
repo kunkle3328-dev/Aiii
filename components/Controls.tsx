@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ConnectionState } from '../types';
-import { MicIcon, MicOffIcon, CalendarDays, StickyNote, CheckSquare, MailIcon } from './icons';
+import { MicIcon, MicOffIcon, CalendarDays, StickyNote, CheckSquare, SearchIcon } from './icons';
 import { useAppContext } from '../context/AppContext';
 import { ToolTab } from '../types';
 
@@ -65,8 +65,8 @@ export const Controls: React.FC<ControlsProps> = ({ connectionState, startSessio
                 <ControlButton onClick={() => openTool('tasks')} title="Tasks">
                     <CheckSquare className="w-6 h-6" />
                 </ControlButton>
-                <ControlButton onClick={() => alert('Email tool not implemented.')} title="Email">
-                    <MailIcon className="w-6 h-6" />
+                 <ControlButton onClick={() => dispatch({ type: 'SET_ACTIVE_PANEL', payload: 'search' })} title="Search">
+                    <SearchIcon className="w-6 h-6" />
                 </ControlButton>
             </div>
         </div>

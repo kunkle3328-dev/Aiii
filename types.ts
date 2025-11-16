@@ -1,4 +1,5 @@
 
+
 export interface Task {
   id: string;
   text: string;
@@ -56,6 +57,14 @@ export type ActivePanel = 'tasks' | 'calendar' | 'notes' | 'search' | 'memory' |
 
 export type ToolTab = 'tasks' | 'calendar' | 'notes';
 
+export interface SearchResult {
+    text: string;
+    sources: Array<{
+        uri: string;
+        title: string;
+    }>;
+}
+
 // AppContext related types
 export interface AppState {
     tasks: Task[];
@@ -65,6 +74,11 @@ export interface AppState {
     settings: Settings;
     activePanel: ActivePanel;
     activeToolTab: ToolTab;
+    searchState: {
+        isLoading: boolean;
+        result: SearchResult | null;
+        error: string | null;
+    };
 }
 
 export type AppAction =
@@ -79,4 +93,7 @@ export type AppAction =
     | { type: 'UPDATE_SETTINGS'; payload: Partial<Settings> }
     | { type: 'SET_ACTIVE_PANEL'; payload: ActivePanel }
     | { type: 'SET_ACTIVE_TOOL_TAB'; payload: ToolTab }
+    | { type: 'SEARCH_START' }
+    | { type: 'SEARCH_SUCCESS'; payload: SearchResult }
+    | { type: 'SEARCH_ERROR'; payload: string }
     | { type: 'LOAD_STATE'; payload: AppState };

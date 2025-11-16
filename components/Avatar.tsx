@@ -1,95 +1,153 @@
 import React, { useRef, useEffect } from 'react';
-import { useGLTF, useAnimations } from '@react-three/drei';
+import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ConnectionState } from '../types';
 
-// IMPORTANT: This is a publicly available Ready Player Me avatar. 
-// Replace with your own GLB model URL that has ARKit compatible blendshapes.
-const AVATAR_URL = "https://models.readyplayer.me/69189159786317131c5bb99a.glb";
+const AVATAR_URL =
+  "https://models.readyplayer.me/69189159786317131c5bb99a.glb?morphTargets=ARKit,Oculus%20Visemes";
 
 interface AvatarProps {
-    modelAmplitude: number;
-    userSpeaking: boolean;
-    connectionState: ConnectionState;
+  modelAmplitude: number;
+  userSpeaking: boolean;
+  connectionState: ConnectionState;
 }
 
-export const Avatar: React.FC<AvatarProps> = ({ modelAmplitude, userSpeaking, connectionState }) => {
-    const group = useRef<THREE.Group>(null);
-    const { scene, animations } = useGLTF(AVATAR_URL);
-    const { actions } = useAnimations(animations, group);
+const Avatar: React.FC<AvatarProps> = ({
+  modelAmplitude,
+  userSpeaking,
+  connectionState,
+}) => {
+  const group = useRef<THREE.Group>(null);
+  const { scene } = useGLTF(AVATAR_URL) as any;
 
-    const headRef = useRef<THREE.Object3D | null>(null);
-    const eyeLRef = useRef<THREE.Object3D | null>(null);
-    const eyeRRef = useRef<THREE.Object3D | null>(null);
+  const headMeshRef = useRef<THREE.SkinnedMesh | null>(null);
+  const leftEyeRef = useRef<THREE.Object3D | null>(null);
+  const rightEyeRef = useRef<THREE.Object3D | null>(null);
+  const headBoneRef = useRef<THREE.Object3D | null>(null);
 
-    useEffect(() => {
-        // Find the head and eyes once the scene is loaded
-        scene.traverse((object) => {
-            if (object.name === 'Head') headRef.current = object;
-            if (object.name === 'LeftEye') eyeLRef.current = object;
-            if (object.name === 'RightEye') eyeRRef.current = object;
-        });
+  // ------------------------------------------------------------
+  // IDENTIFY NODES
+  // ------------------------------------------------------------
+  useEffect(() => {
+    scene.traverse((child: any) => {
 
-        // Play a subtle idle animation
-        const idleAnimation = actions['idle'];
-        if (idleAnimation) {
-            idleAnimation.play();
-        }
-    }, [scene, actions]);
+      // Remove body meshes
+      if (
+        child.name.includes("Wolf3D_Body") ||
+        child.name.includes("Outfit") ||
+        child.name.includes("Bottom") ||
+        child.name.includes("Top") ||
+        child.name.includes("Footwear")
+      ) {
+        child.visible = false;
+      }
 
-    useFrame((state, delta) => {
-        if (!group.current) return;
-        
-        // --- Lip Sync ---
-        // Map model's speech amplitude to mouth opening blendshape
-        const mouthOpen = group.current.getObjectByName('Wolf3D_Head') as THREE.SkinnedMesh;
-        const mouthOpenIndex = mouthOpen?.morphTargetDictionary?.['mouthOpen'];
-        if (mouthOpen && mouthOpenIndex !== undefined && mouthOpen.morphTargetInfluences) {
-             const targetInfluence = Math.min(modelAmplitude * 3.0, 1.0); // Amplify for visible effect
-             mouthOpen.morphTargetInfluences[mouthOpenIndex] = THREE.MathUtils.lerp(
-                mouthOpen.morphTargetInfluences[mouthOpenIndex],
-                targetInfluence,
-                0.5 // Smoothing factor
-            );
-        }
+      // Head mesh for morph targets
+      if (child.isSkinnedMesh && (child.name.includes("Head") || child.name.includes("Wolf3D_Head"))) {
+        headMeshRef.current = child;
+      }
 
-        // --- Head & Eye Tracking ---
-        // Make the avatar look towards the camera/user
-        const { camera } = state;
-        if (headRef.current) {
-            headRef.current.lookAt(camera.position);
-        }
-        
-        // Subtle idle head movement
-        const time = state.clock.getElapsedTime();
-        if (headRef.current) {
-            headRef.current.rotation.y += Math.sin(time * 0.5) * 0.0005;
-            headRef.current.rotation.x += Math.cos(time * 0.5) * 0.0005;
-        }
+      // Head bone for rotation
+      if (child.isBone && child.name === 'Head') {
+        headBoneRef.current = child;
+      }
 
-        // --- Emotional/State-based expressions ---
-        const browDownLIndex = mouthOpen?.morphTargetDictionary?.['browDownLeft'];
-        const browDownRIndex = mouthOpen?.morphTargetDictionary?.['browDownRight'];
-        
-        if (mouthOpen.morphTargetInfluences && browDownLIndex !== undefined && browDownRIndex !== undefined) {
-            // When user is speaking, avatar looks more attentive (slight brow furrow)
-            const browTarget = userSpeaking ? 0.3 : 0;
-            mouthOpen.morphTargetInfluences[browDownLIndex] = THREE.MathUtils.lerp(mouthOpen.morphTargetInfluences[browDownLIndex], browTarget, 0.1);
-            mouthOpen.morphTargetInfluences[browDownRIndex] = THREE.MathUtils.lerp(mouthOpen.morphTargetInfluences[browDownRIndex], browTarget, 0.1);
-        }
-
-         // Blinking
-        const eyeBlinkLIndex = mouthOpen?.morphTargetDictionary?.['eyeBlinkLeft'];
-        const eyeBlinkRIndex = mouthOpen?.morphTargetDictionary?.['eyeBlinkRight'];
-        if (mouthOpen.morphTargetInfluences && eyeBlinkLIndex !== undefined && eyeBlinkRIndex !== undefined) {
-            const blink = Math.max(0, -Math.cos(time * 0.5) - 0.5) * 2;
-            mouthOpen.morphTargetInfluences[eyeBlinkLIndex] = blink;
-            mouthOpen.morphTargetInfluences[eyeBlinkRIndex] = blink;
-        }
+      // Eyes for tracking
+      if (child.name === "EyeLeft" || child.name === "LeftEye") {
+        leftEyeRef.current = child;
+      }
+      if (child.name === "EyeRight" || child.name === "RightEye") {
+        rightEyeRef.current = child;
+      }
     });
+  }, [scene]);
 
-    return <primitive ref={group} object={scene} scale={1.2} position={[0, -1.6, 0]} />;
+
+  // ------------------------------------------------------------
+  // FRAME LOOP
+  // ------------------------------------------------------------
+  useFrame(({ camera, clock }) => {
+    const time = clock.getElapsedTime();
+
+    // ---------------------------
+    // LIP SYNC
+    // ---------------------------
+    if (headMeshRef.current) {
+      const dict = headMeshRef.current.morphTargetDictionary;
+      const infl = headMeshRef.current.morphTargetInfluences;
+
+      if (dict && infl) {
+        const mouth =
+          dict["viseme_aa"] ||
+          dict["viseme_ih"] ||
+          dict["jawOpen"] ||
+          dict["mouthOpen"];
+
+        if (mouth !== undefined) {
+          const target = Math.min(modelAmplitude * 2.2, 1.0);
+          infl[mouth] = THREE.MathUtils.lerp(infl[mouth], target, 0.35);
+        }
+      }
+    }
+
+    // ---------------------------
+    // BLINK
+    // ---------------------------
+    if (headMeshRef.current) {
+      const dict = headMeshRef.current.morphTargetDictionary;
+      const infl = headMeshRef.current.morphTargetInfluences;
+
+      if (dict && infl) {
+        const blinkAmount = Math.max(0, -Math.cos(time * 0.45) - 0.5) * 2;
+
+        if (dict["eyeBlinkLeft"] !== undefined)
+          infl[dict["eyeBlinkLeft"]] = blinkAmount;
+
+        if (dict["eyeBlinkRight"] !== undefined)
+          infl[dict["eyeBlinkRight"]] = blinkAmount;
+      }
+    }
+
+    // ---------------------------
+    // EYE TRACKING
+    // ---------------------------
+    const eyeTarget = new THREE.Vector3(
+      camera.position.x,
+      camera.position.y,   // Look at camera height
+      camera.position.z
+    );
+
+    if (leftEyeRef.current) leftEyeRef.current.lookAt(eyeTarget);
+    if (rightEyeRef.current) rightEyeRef.current.lookAt(eyeTarget);
+
+    // ---------------------------
+    // HEAD TILT AND IDLE MOVEMENT
+    // ---------------------------
+    if (headBoneRef.current) {
+      // Correct head to look forward by tilting it up.
+      // A negative value here tilts the chin up.
+      headBoneRef.current.rotation.x = THREE.MathUtils.lerp(
+        headBoneRef.current.rotation.x,
+        -0.3, // Using a negative value to tilt the head UP.
+        0.1
+      );
+
+      // Reset sideways tilt and add subtle idle animation
+      headBoneRef.current.rotation.y = THREE.MathUtils.lerp(
+        headBoneRef.current.rotation.y,
+        Math.sin(time * 0.5) * 0.05, // Subtle side-to-side idle movement
+        0.1
+      );
+    }
+  });
+
+  return (
+    <group ref={group} scale={1.35}>
+      <primitive object={scene} />
+    </group>
+  );
 };
 
+export default Avatar;
 useGLTF.preload(AVATAR_URL);
