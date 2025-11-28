@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useReducer, useContext, useEffect, ReactNode } from 'react';
 import { AppState, AppAction, Memory, Settings, ToolTab } from '../types';
 
@@ -13,6 +14,7 @@ const defaultSettings: Settings = {
     theme: 'dark',
     avatarStyle: 'default',
     continuousListening: true,
+    googleSearchEnabled: true,
     voice: 'Zephyr',
     voiceSpeed: 1,
     voicePitch: 1,
@@ -26,6 +28,7 @@ const initialState: AppState = {
     settings: defaultSettings,
     activePanel: null,
     activeToolTab: 'tasks',
+    transcript: [],
     searchState: {
         isLoading: false,
         result: null,
@@ -62,11 +65,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         case 'UPDATE_MEMORY':
             return { ...state, memory: { ...state.memory, ...action.payload } };
         case 'UPDATE_SETTINGS':
-            const newSettings = { ...state.settings, ...action.payload };
-            if(action.payload.theme) {
-              document.documentElement.className = action.payload.theme;
-            }
-            return { ...state, settings: newSettings };
+            return { ...state, settings: { ...state.settings, ...action.payload } };
         case 'SET_ACTIVE_PANEL':
             return { ...state, activePanel: state.activePanel === action.payload ? null : action.payload };
         case 'SET_ACTIVE_TOOL_TAB':
@@ -77,6 +76,10 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, searchState: { isLoading: false, result: action.payload, error: null } };
         case 'SEARCH_ERROR':
             return { ...state, searchState: { isLoading: false, result: null, error: action.payload } };
+        case 'ADD_TRANSCRIPT_ENTRY':
+            return { ...state, transcript: [...state.transcript, action.payload] };
+        case 'CLEAR_TRANSCRIPT':
+            return { ...state, transcript: [] };
         case 'LOAD_STATE':
             return { ...state, ...action.payload };
         default:
@@ -106,10 +109,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             console.error("Failed to load state from localStorage", error);
         }
     }, []);
+    
+    useEffect(() => {
+        // This is the single source of truth for applying the theme class.
+        document.documentElement.className = state.settings.theme;
+    }, [state.settings.theme]);
 
     useEffect(() => {
         try {
-            localStorage.setItem('aiAssistantState', JSON.stringify(state));
+            // Save state, excluding transient state like activePanel
+            const stateToSave = { ...state, activePanel: null };
+            localStorage.setItem('aiAssistantState', JSON.stringify(stateToSave));
         } catch (error) {
             console.error("Failed to save state to localStorage", error);
         }

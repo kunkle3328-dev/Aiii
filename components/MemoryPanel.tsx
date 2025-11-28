@@ -29,18 +29,18 @@ export const MemoryPanel: React.FC = () => {
 
     return (
         <div className="flex flex-col h-full">
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-text-secondary mb-4">
                 This is the AI's long-term memory. You can edit the JSON directly to influence its personality and knowledge.
             </p>
             <textarea
                 value={memoryText}
                 onChange={(e) => setMemoryText(e.target.value)}
-                className="flex-grow w-full bg-gray-900 border border-gray-700 rounded-lg p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent-cyan resize-none"
+                className="flex-grow w-full bg-tertiary border border-border-color rounded-lg p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none custom-scrollbar"
             />
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
             <button
                 onClick={handleSave}
-                className="mt-4 w-full bg-accent-cyan text-primary-dark font-bold py-2 rounded-lg transition-colors hover:bg-cyan-300 disabled:opacity-50"
+                className="mt-4 w-full bg-accent text-primary-dark font-bold py-2 rounded-lg transition-colors hover:bg-accent-hover disabled:opacity-50"
                 disabled={saveStatus === 'saving'}
             >
                 {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Memory'}

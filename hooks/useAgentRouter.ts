@@ -20,6 +20,8 @@ export const useAgentRouter = () => {
             aiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
         }
 
+        const isSearchEnabled = state.settings.googleSearchEnabled;
+
         const systemInstruction = `You are the routing agent for a conversational AI. Your job is to analyze the user's input and determine which tool to use.
 Respond ONLY with a JSON object matching the response schema. Do not add any commentary or markdown formatting.
 
@@ -35,7 +37,7 @@ Determine the correct agent and action.
 - For calendar, use "calendar" agent. Actions: "add", "list".
 - For memory updates, use "memory" agent. Action: "update".
 - For general conversation, use "conversation" agent. Action: "chat".
-- For search queries about recent events, trending topics, or information that needs to be up-to-date, use "search" agent. Action: "query".
+${isSearchEnabled ? '- For search queries about recent events, trending topics, or information that needs to be up-to-date, use "search" agent. Action: "query".' : ''}
 
 If adding a task, note or event, generate a suitable title and content.
 If adding a calendar event, infer start and end times. Assume duration is 1 hour if not specified.
@@ -100,7 +102,6 @@ If updating memory, specify the key and new value.
                     break;
                 case 'memory':
                     if (action === 'update' && payload.key && payload.value) {
-                       // Simple implementation, a more robust one would handle nested keys
                        dispatch({type: 'UPDATE_MEMORY', payload: {[payload.key]: payload.value}})
                     }
                     break;
@@ -108,8 +109,8 @@ If updating memory, specify the key and new value.
                     // Handled by the live agent
                     break;
                 case 'search':
-                    if (action === 'query' && payload.text) {
-                        dispatch({ type: 'SET_ACTIVE_PANEL', payload: 'search' });
+                    // Double check enabling to prevent bypass
+                    if (isSearchEnabled && action === 'query' && payload.text) {
                         dispatch({ type: 'SEARCH_START' });
                         try {
                             const searchResponse = await aiRef.current.models.generateContent({
@@ -127,6 +128,21 @@ If updating memory, specify the key and new value.
 
                             const result: SearchResult = { text, sources };
                             dispatch({ type: 'SEARCH_SUCCESS', payload: result });
+
+                            // Inject search result directly into conversation transcript
+                            const formattedSources = sources.map((s, i) => `[${i+1}] ${s.title}`).join('\n');
+                            const transcriptText = `🔎 **I found this:**\n${text}\n\n**Sources:**\n${formattedSources}`;
+                            
+                            dispatch({
+                                type: 'ADD_TRANSCRIPT_ENTRY',
+                                payload: {
+                                    id: crypto.randomUUID(),
+                                    speaker: 'model', 
+                                    text: transcriptText,
+                                    timestamp: Date.now()
+                                }
+                            });
+
                         } catch(e) {
                             console.error("Search API call failed", e);
                             dispatch({ type: 'SEARCH_ERROR', payload: 'An error occurred during the search.' });
@@ -135,11 +151,28 @@ If updating memory, specify the key and new value.
                     break;
             }
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error in agent router:", error);
+            // Handle Quota/Rate Limit Errors
+            if (
+                error.message?.includes('429') || 
+                error.status === 'RESOURCE_EXHAUSTED' || 
+                (error.error && error.error.code === 429) ||
+                JSON.stringify(error).includes('RESOURCE_EXHAUSTED')
+            ) {
+                dispatch({
+                    type: 'ADD_TRANSCRIPT_ENTRY',
+                    payload: {
+                        id: crypto.randomUUID(),
+                        speaker: 'system',
+                        text: "⚠️ System Alert: Usage limit exceeded (Rate Limit). The Agent Router is temporarily unavailable. Please try again later.",
+                        timestamp: Date.now()
+                    }
+                });
+            }
         }
 
-    }, [state.memory, state.tasks, dispatch]);
+    }, [state.memory, state.tasks, state.settings.googleSearchEnabled, dispatch]);
 
     return { routeIntent };
 };

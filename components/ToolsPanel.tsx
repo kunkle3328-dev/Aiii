@@ -29,14 +29,14 @@ const TasksTool: React.FC = () => {
                 onChange={(e) => setNewTaskText(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleAddTask()}
                 placeholder="Add a new task..."
-                className="flex-grow bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-cyan"
+                className="flex-grow bg-tertiary border border-border-color rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent"
             />
-            <button onClick={handleAddTask} className="bg-accent-cyan text-primary-dark p-2 rounded-lg"><Plus className="w-5 h-5"/></button>
+            <button onClick={handleAddTask} className="bg-accent text-primary-dark p-2 rounded-lg"><Plus className="w-5 h-5"/></button>
         </div>
         <ul className="space-y-2">
             {state.tasks.map(task => (
-                <li key={task.id} className="flex items-center justify-between bg-gray-900 p-2 rounded-lg">
-                    <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : ''}`}>{task.text}</span>
+                <li key={task.id} className="flex items-center justify-between bg-tertiary p-2 rounded-lg">
+                    <span className={`flex-grow ${task.completed ? 'line-through text-text-secondary' : ''}`}>{task.text}</span>
                     <div className="flex gap-2">
                         <button onClick={() => dispatch({ type: 'TOGGLE_TASK', payload: task.id })} className="text-green-500"><CheckSquare className="w-5 h-5"/></button>
                         <button onClick={() => dispatch({ type: 'DELETE_TASK', payload: task.id })} className="text-red-500"><Trash2 className="w-5 h-5"/></button>
@@ -53,9 +53,9 @@ const CalendarTool: React.FC = () => {
         <h3 className="text-lg font-semibold mb-2">Upcoming Events</h3>
         <ul className="space-y-2">
             {state.calendarEvents.map(event => (
-                <li key={event.id} className="bg-gray-900 p-3 rounded-lg">
+                <li key={event.id} className="bg-tertiary p-3 rounded-lg">
                     <p className="font-bold">{event.title}</p>
-                    <p className="text-sm text-gray-400">{new Date(event.start).toLocaleString()} - {new Date(event.end).toLocaleString()}</p>
+                    <p className="text-sm text-text-secondary">{new Date(event.start).toLocaleString()} - {new Date(event.end).toLocaleString()}</p>
                 </li>
             ))}
         </ul>
@@ -75,12 +75,12 @@ const NotesTool: React.FC = () => {
         dispatch({type: 'ADD_NOTE', payload: newNote});
     }
     return <div>
-        <button onClick={handleAddNote} className="w-full bg-accent-cyan text-primary-dark p-2 rounded-lg mb-4 flex items-center justify-center gap-2">
+        <button onClick={handleAddNote} className="w-full bg-accent text-primary-dark p-2 rounded-lg mb-4 flex items-center justify-center gap-2">
             <Plus className="w-5 h-5" /> Create New Note
         </button>
         <div className="space-y-3">
             {state.notes.map(note => (
-                 <div key={note.id} className="bg-gray-900 p-3 rounded-lg">
+                 <div key={note.id} className="bg-tertiary p-3 rounded-lg">
                     <input 
                       type="text" 
                       value={note.title} 
@@ -90,7 +90,7 @@ const NotesTool: React.FC = () => {
                     <textarea 
                       value={note.content} 
                       onChange={(e) => dispatch({type: 'UPDATE_NOTE', payload: {...note, content: e.target.value}})}
-                      className="bg-transparent w-full text-sm text-gray-300 h-24 resize-none focus:outline-none"
+                      className="bg-transparent w-full text-sm text-text-secondary h-24 resize-none focus:outline-none custom-scrollbar"
                       placeholder="Your note..."
                     />
                 </div>
@@ -101,7 +101,7 @@ const NotesTool: React.FC = () => {
 
 const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => {
     return (
-        <button onClick={onClick} className={`flex-1 flex items-center justify-center gap-2 p-3 transition-colors ${active ? 'bg-accent-cyan/20 text-accent-cyan' : 'text-gray-400 hover:bg-gray-800'}`}>
+        <button onClick={onClick} className={`flex-1 flex items-center justify-center gap-2 p-3 transition-colors ${active ? 'bg-accent/20 text-accent' : 'text-text-secondary hover:bg-tertiary'}`}>
             {children}
         </button>
     )
@@ -126,7 +126,7 @@ export const ToolsPanel: React.FC = () => {
     
     return (
         <div>
-            <div className="flex border-b border-gray-700 mb-4">
+            <div className="flex border-b border-border-color mb-4">
                 <TabButton active={activeToolTab === 'tasks'} onClick={() => setActiveTab('tasks')}><CheckSquare className="w-5 h-5"/> Tasks</TabButton>
                 <TabButton active={activeToolTab === 'calendar'} onClick={() => setActiveTab('calendar')}><CalendarDays className="w-5 h-5"/> Calendar</TabButton>
                 <TabButton active={activeToolTab === 'notes'} onClick={() => setActiveTab('notes')}><StickyNote className="w-5 h-5"/> Notes</TabButton>

@@ -1,14 +1,12 @@
 
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI, LiveSession, LiveServerMessage, Modality } from '@google/genai';
-import { ConnectionState, TranscriptEntry } from '../types';
+import { ConnectionState } from '../types';
 import { useAppContext } from '../context/AppContext';
 import { useAgentRouter } from './useAgentRouter';
 
 // --- Audio Encoding/Decoding Utilities ---
 
-// These functions are self-contained and don't rely on external libraries
 function encode(bytes: Uint8Array): string {
     let binary = '';
     const len = bytes.byteLength;
@@ -51,7 +49,6 @@ export const useGeminiLive = () => {
     const { state, dispatch } = useAppContext();
     const { routeIntent } = useAgentRouter();
     const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
-    const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
     const [isMuted, setIsMuted] = useState(false);
     
     // Amplitudes for UI visualization (waveform, avatar movement)
@@ -123,23 +120,29 @@ export const useGeminiLive = () => {
     }, []);
 
     const startSession = useCallback(async () => {
-        if (connectionState !== 'disconnected' || !process.env.API_KEY) {
+        // Allow retry if state is error
+        if ((connectionState !== 'disconnected' && connectionState !== 'error') || !process.env.API_KEY) {
             console.error("Cannot start session. State:", connectionState, "API Key available:", !!process.env.API_KEY);
             return;
         }
         
         setConnectionState('connecting');
-        setTranscript([]);
+        dispatch({ type: 'CLEAR_TRANSCRIPT' });
 
         try {
-            if (!aiRef.current) {
-              aiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            }
+            // Always create a new instance to ensure fresh state
+            aiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
             // Initialize Audio Contexts
-            // FIX: Cast window to any to allow webkitAudioContext for Safari compatibility, resolving TypeScript error.
             inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+            if (inputAudioContextRef.current.state === 'suspended') {
+                await inputAudioContextRef.current.resume();
+            }
+
             outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+            if (outputAudioContextRef.current.state === 'suspended') {
+                await outputAudioContextRef.current.resume();
+            }
             
             const outputNode = outputAudioContextRef.current.createGain();
             outputNode.connect(outputAudioContextRef.current.destination);
@@ -150,12 +153,20 @@ export const useGeminiLive = () => {
 
             mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
             
+            const toolsInstruction = state.settings.googleSearchEnabled 
+                ? "You have access to Google Search, Tasks, Notes, and Calendar tools. If the user asks for these, confirm you can do it. Do not say you cannot access them." 
+                : "You have access to Tasks, Notes, and Calendar tools. If the user asks for these, confirm you can do it.";
+
             sessionPromiseRef.current = aiRef.current.live.connect({
                 model: 'gemini-2.5-flash-native-audio-preview-09-2025',
                 config: {
                     responseModalities: [Modality.AUDIO],
                     speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: state.settings.voice } } },
-                    systemInstruction: `You are a helpful and friendly AI assistant. Your personality is shaped by the user's memory profile. Current memory: ${JSON.stringify(state.memory)}`,
+                    systemInstruction: `You are Aura, an advanced, friendly AI companion. 
+                    Your personality is based on: ${JSON.stringify(state.memory.profile)}. 
+                    ${toolsInstruction}
+                    The system will handle the actual execution of these tools after you respond. 
+                    Keep your responses concise and conversational.`,
                     inputAudioTranscription: {},
                     outputAudioTranscription: {},
                 },
@@ -207,11 +218,17 @@ export const useGeminiLive = () => {
                             const modelOutput = currentOutputTranscriptionRef.current.trim();
                             
                             if (userInput) {
-                                setTranscript(prev => [...prev, { id: crypto.randomUUID(), speaker: 'user', text: userInput, timestamp: Date.now()}]);
+                                dispatch({ 
+                                    type: 'ADD_TRANSCRIPT_ENTRY', 
+                                    payload: { id: crypto.randomUUID(), speaker: 'user', text: userInput, timestamp: Date.now()} 
+                                });
                                 routeIntent(userInput);
                             }
                              if (modelOutput) {
-                                setTranscript(prev => [...prev, { id: crypto.randomUUID(), speaker: 'model', text: modelOutput, timestamp: Date.now()}]);
+                                dispatch({ 
+                                    type: 'ADD_TRANSCRIPT_ENTRY', 
+                                    payload: { id: crypto.randomUUID(), speaker: 'model', text: modelOutput, timestamp: Date.now()} 
+                                });
                             }
                             
                             currentInputTranscriptionRef.current = '';
@@ -265,7 +282,7 @@ export const useGeminiLive = () => {
             setConnectionState('error');
             await stopSession();
         }
-    }, [connectionState, stopSession, analyzeAudio, state.settings.voice, state.memory, isMuted, routeIntent]);
+    }, [connectionState, stopSession, analyzeAudio, state.settings.voice, state.memory, state.settings.googleSearchEnabled, isMuted, routeIntent, dispatch]);
 
     useEffect(() => {
         return () => {
@@ -279,7 +296,7 @@ export const useGeminiLive = () => {
         connectionState,
         startSession,
         stopSession,
-        transcript,
+        transcript: state.transcript,
         isMuted,
         toggleMute,
         userAmplitude,

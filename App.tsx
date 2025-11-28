@@ -1,14 +1,12 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { AvatarCanvas } from './components/AvatarCanvas';
 import { UI } from './components/UI';
 import { useGeminiLive } from './hooks/useGeminiLive';
-import { useAppContext } from './context/AppContext';
 import { LoadingSplash } from './components/LoadingSplash';
 
 export default function App() {
-    const { state } = useAppContext();
-    const { theme } = state.settings;
     const [isLoading, setIsLoading] = useState(true);
     const [loadingMessage, setLoadingMessage] = useState("Initializing...");
 
@@ -22,10 +20,6 @@ export default function App() {
         userAmplitude,
         modelAmplitude
     } = useGeminiLive();
-
-    useEffect(() => {
-        document.documentElement.className = theme;
-    }, [theme]);
 
     useEffect(() => {
         const loadingSteps = [
@@ -54,12 +48,12 @@ export default function App() {
     }
 
     return (
-        <main className="relative w-screen h-screen overflow-hidden bg-primary-dark dark:bg-primary-dark font-sans">
+        <main className={`relative w-screen h-screen overflow-hidden bg-primary text-text-primary font-sans transition-colors duration-500`}>
             {/* Avatar and Title in the background */}
             <div className="absolute inset-0 z-0">
                 <div className="absolute top-8 left-0 right-0 z-10 text-center pointer-events-none">
-                    <h1 className="text-4xl font-bold tracking-wider">AURA</h1>
-                    <p className="text-lg text-gray-400">Your Personal AI Companion</p>
+                    <h1 className="text-5xl font-extrabold tracking-widest text-text-primary animate-neon-pulse select-none" style={{ fontFamily: `'Orbitron', sans-serif`}}>AURA</h1>
+                    <p className="text-lg text-text-secondary opacity-80 select-none">Your Personal AI Companion</p>
                 </div>
                 <AvatarCanvas 
                     modelAmplitude={modelAmplitude}
@@ -70,7 +64,7 @@ export default function App() {
 
             {/* UI on top with a gradient fade */}
             <div className="absolute inset-0 z-10 flex flex-col justify-end pointer-events-none">
-                <div className="absolute bottom-0 left-0 w-full h-3/4 bg-gradient-to-t from-primary-dark via-primary-dark/90 to-transparent" />
+                 <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-primary via-primary/80 to-transparent" />
                 <div className="relative w-full max-h-[70vh] flex flex-col">
                     <UI 
                         connectionState={connectionState}

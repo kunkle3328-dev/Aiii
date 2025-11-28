@@ -39,6 +39,7 @@ export interface Settings {
     theme: 'light' | 'dark' | 'cyberpunk' | 'holographic';
     avatarStyle: string;
     continuousListening: boolean;
+    googleSearchEnabled: boolean;
     voice: string;
     voiceSpeed: number;
     voicePitch: number;
@@ -46,14 +47,14 @@ export interface Settings {
 
 export interface TranscriptEntry {
     id: string;
-    speaker: 'user' | 'model';
+    speaker: 'user' | 'model' | 'system';
     text: string;
     timestamp: number;
 }
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
-export type ActivePanel = 'tasks' | 'calendar' | 'notes' | 'search' | 'memory' | 'settings' | null;
+export type ActivePanel = 'tools' | 'calendar' | 'notes' | 'search' | 'memory' | 'settings' | null;
 
 export type ToolTab = 'tasks' | 'calendar' | 'notes';
 
@@ -74,6 +75,7 @@ export interface AppState {
     settings: Settings;
     activePanel: ActivePanel;
     activeToolTab: ToolTab;
+    transcript: TranscriptEntry[];
     searchState: {
         isLoading: boolean;
         result: SearchResult | null;
@@ -96,4 +98,6 @@ export type AppAction =
     | { type: 'SEARCH_START' }
     | { type: 'SEARCH_SUCCESS'; payload: SearchResult }
     | { type: 'SEARCH_ERROR'; payload: string }
-    | { type: 'LOAD_STATE'; payload: AppState };
+    | { type: 'LOAD_STATE'; payload: AppState }
+    | { type: 'ADD_TRANSCRIPT_ENTRY'; payload: TranscriptEntry }
+    | { type: 'CLEAR_TRANSCRIPT' };
