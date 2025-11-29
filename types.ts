@@ -1,5 +1,4 @@
 
-
 export interface Task {
   id: string;
   text: string;
@@ -22,17 +21,9 @@ export interface CalendarEvent {
   end: string;
 }
 
+// Relaxed Memory interface to support complex, nested AI personas
 export interface Memory {
-  profile: {
-    name: string;
-    interests: string[];
-  };
-  preferences: {
-    theme: 'dark' | 'light' | 'cyberpunk';
-    voice: string;
-  };
-  projects: { name: string; goals: string[] }[];
-  pastConversations: string[];
+  [key: string]: any;
 }
 
 export interface Settings {
