@@ -1,9 +1,10 @@
 
 import React from 'react';
 import { ConnectionState } from '../types';
-import { MicIcon, MicOffIcon, AppWindowIcon, BrainCircuitIcon, SlidersIcon, SearchIcon } from './icons';
+import { MicIcon, MicOffIcon, AppWindowIcon, BrainCircuitIcon, SlidersIcon, SearchIcon, DownloadIcon } from './icons';
 import { useAppContext } from '../context/AppContext';
 import { ToolTab } from '../types';
+import { usePWA } from '../hooks/usePWA';
 
 interface ControlsProps {
     connectionState: ConnectionState;
@@ -29,6 +30,7 @@ export const Controls: React.FC<ControlsProps> = ({ connectionState, startSessio
     const isConnected = connectionState === 'connected';
     const isConnecting = connectionState === 'connecting';
     const { dispatch } = useAppContext();
+    const { isInstallable, installApp } = usePWA();
 
     const handleMicClick = () => {
         if (isConnected) {
@@ -68,6 +70,12 @@ export const Controls: React.FC<ControlsProps> = ({ connectionState, startSessio
                  <ControlButton onClick={() => dispatch({ type: 'SET_ACTIVE_PANEL', payload: 'settings' })} title="Settings">
                     <SlidersIcon className="w-6 h-6" />
                 </ControlButton>
+                
+                {isInstallable && (
+                    <ControlButton onClick={installApp} title="Install App">
+                        <DownloadIcon className="w-6 h-6 text-accent animate-pulse" />
+                    </ControlButton>
+                )}
             </div>
         </div>
     );
