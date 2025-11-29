@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Settings, AvatarExpression } from '../types';
 import { useAgentRouter } from '../hooks/useAgentRouter';
@@ -27,7 +27,7 @@ const Input: React.FC<{ value: string; onChange: (e: React.ChangeEvent<HTMLInput
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="bg-tertiary border border-border-color rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-accent w-full mt-2"
+        className="bg-tertiary border border-border-color rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-accent w-full mt-2 text-sm"
     />
 );
 
@@ -49,6 +49,18 @@ export const SettingsPanel: React.FC = () => {
         setGeneratingBg(false);
     };
     
+    const handleResetBackground = () => {
+         dispatch({ type: 'SET_BACKGROUND_IMAGE', payload: null });
+         // Optionally reset style to cinematic if preferred, but leaving as is allows quick re-gen
+    };
+
+    // Handle clearing background if "None" is selected
+    useEffect(() => {
+        if (state.settings.backgroundStyle === 'none') {
+            dispatch({ type: 'SET_BACKGROUND_IMAGE', payload: null });
+        }
+    }, [state.settings.backgroundStyle, dispatch]);
+    
     const themeOptions = [
         { value: 'dark', label: 'Dark (Default)' },
         { value: 'light', label: 'Light' },
@@ -65,9 +77,20 @@ export const SettingsPanel: React.FC = () => {
         { value: 'custom', label: 'Custom URL (ReadyPlayerMe)' }
     ];
 
+    const bgStyles = [
+        { value: 'cinematic', label: 'Cinematic (Default)' },
+        { value: 'abstract', label: 'Abstract' },
+        { value: 'photorealistic', label: 'Photorealistic' },
+        { value: 'cartoon', label: 'Cartoon/Stylized' },
+        { value: 'cyberpunk', label: 'Cyberpunk City' },
+        { value: 'neon-city', label: 'Neon City' },
+        { value: 'deep-space', label: 'Deep Space' },
+        { value: 'zen-garden', label: 'Zen Garden' },
+        { value: 'none', label: 'None (Solid Color)' },
+    ];
+
     const expressions: AvatarExpression[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'thinking'];
     
-    // Determine current selection for dropdown (either default or custom)
     const currentAvatarSelection = state.settings.avatarStyle === AURA_DEFAULT ? AURA_DEFAULT : 'custom';
 
     return (
@@ -91,11 +114,6 @@ export const SettingsPanel: React.FC = () => {
                             if (val !== 'custom') {
                                 handleSettingChange('avatarStyle', val);
                             } else {
-                                // If switching to custom but no URL yet, keep current or clear it? 
-                                // Best to keep current until user types something, but we need to update the dropdown UI
-                                // Effectively we treat 'custom' logic by checking if URL matches known presets
-                                // For now, if they select custom, we just let them edit the text box below.
-                                // If they select Default, we overwrite the setting.
                                 handleSettingChange('avatarStyle', '');
                             }
                         }}
@@ -105,10 +123,9 @@ export const SettingsPanel: React.FC = () => {
                 </div>
             </SettingRow>
             
-            {/* Show input if Custom is selected or if the current URL isn't one of the presets */}
             {(currentAvatarSelection === 'custom') && (
                 <div className="pb-3 border-b border-border-color">
-                    <label className="text-xs text-text-secondary block mb-1">Custom Ready Player Me GLB URL (must support ARKit)</label>
+                    <label className="text-xs text-text-secondary block mb-1">Custom Ready Player Me GLB URL</label>
                     <Input 
                         value={state.settings.avatarStyle}
                         onChange={(e) => handleSettingChange('avatarStyle', e.target.value)}
@@ -117,15 +134,53 @@ export const SettingsPanel: React.FC = () => {
                 </div>
             )}
 
-            <SettingRow label="Dynamic Background">
-                 <button
-                    onClick={handleGenerateBackground}
-                    disabled={generatingBg}
-                    className="bg-accent text-primary-dark font-bold py-1 px-3 rounded-md text-sm transition-all hover:bg-accent-hover disabled:opacity-50"
-                >
-                    {generatingBg ? 'Generating...' : 'Generate from Mood'}
-                </button>
-            </SettingRow>
+            <div className="border-t border-border-color pt-4 mt-2">
+                 <div className="flex justify-between items-center mb-2">
+                    <label className="text-text-secondary">Dynamic Background</label>
+                    <div className="flex gap-2">
+                        {state.settings.backgroundStyle !== 'none' && (
+                             <button
+                                onClick={handleResetBackground}
+                                className="bg-secondary border border-border-color text-text-secondary hover:text-white py-1 px-2 rounded-md text-xs transition-colors"
+                                title="Reset to standard background"
+                            >
+                                Reset
+                            </button>
+                        )}
+                        {state.settings.backgroundStyle !== 'none' && (
+                            <button
+                                onClick={handleGenerateBackground}
+                                disabled={generatingBg}
+                                className="bg-accent text-primary-dark font-bold py-1 px-3 rounded-md text-sm transition-all hover:bg-accent-hover disabled:opacity-50"
+                            >
+                                {generatingBg ? '...' : 'Generate'}
+                            </button>
+                        )}
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-2 gap-2 mb-2">
+                     <div>
+                        <label className="text-xs text-text-secondary block mb-1">Style</label>
+                        <Select
+                            value={state.settings.backgroundStyle}
+                            onChange={(e) => handleSettingChange('backgroundStyle', e.target.value as any)}
+                        >
+                            {bgStyles.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        </Select>
+                     </div>
+                 </div>
+                 {state.settings.backgroundStyle !== 'none' && (
+                     <div>
+                        <label className="text-xs text-text-secondary block mb-1">Custom Keywords (Optional)</label>
+                        <Input 
+                            value={state.settings.backgroundKeywords}
+                            onChange={(e) => handleSettingChange('backgroundKeywords', e.target.value)}
+                            placeholder="e.g., neon forest, calm beach, mars base..."
+                        />
+                     </div>
+                 )}
+            </div>
+
 
             <h3 className="text-lg font-semibold text-accent mt-6">Avatar Expressions (Test)</h3>
             <div className="grid grid-cols-3 gap-2">
@@ -152,14 +207,15 @@ export const SettingsPanel: React.FC = () => {
                     value={state.settings.voice}
                     onChange={(e) => handleSettingChange('voice', e.target.value)}
                 >
-                    <optgroup label="Standard Voices">
-                        <option value="Puck">Puck (Male)</option>
-                        <option value="Kore">Kore (Female)</option>
+                    <optgroup label="Professional & Deep">
+                        <option value="Aoede">Aoede (Confident, Female) ✨</option>
+                        <option value="Charon">Charon (Deep, Male) ✨</option>
+                        <option value="Fenrir">Fenrir (Resonant, Male) ✨</option>
                     </optgroup>
-                    <optgroup label="Premium Voices">
-                        <option value="Zephyr">Zephyr (Female) ✨</option>
-                        <option value="Charon">Charon (Male) ✨</option>
-                        <option value="Fenrir">Fenrir (Male) ✨</option>
+                    <optgroup label="Bright & Energetic">
+                        <option value="Zephyr">Zephyr (Bright, Female) ✨</option>
+                        <option value="Puck">Puck (Playful, Male)</option>
+                        <option value="Kore">Kore (Balanced, Female)</option>
                     </optgroup>
                  </Select>
             </SettingRow>

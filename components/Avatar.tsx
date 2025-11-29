@@ -55,6 +55,8 @@ const Avatar: React.FC<AvatarProps> = ({
   const headBoneRef = useRef<THREE.Object3D | null>(null);
   const neckBoneRef = useRef<THREE.Object3D | null>(null);
   const spineBoneRef = useRef<THREE.Object3D | null>(null);
+  const leftShoulderRef = useRef<THREE.Object3D | null>(null);
+  const rightShoulderRef = useRef<THREE.Object3D | null>(null);
   
   const smoothedAmplitude = useRef(0);
   const mouthOpenRef = useRef(0);
@@ -82,6 +84,8 @@ const Avatar: React.FC<AvatarProps> = ({
           if (child.name === 'Head') headBoneRef.current = child;
           if (child.name === 'Neck') neckBoneRef.current = child;
           if (child.name === 'Spine2') spineBoneRef.current = child;
+          if (child.name.includes('LeftShoulder')) leftShoulderRef.current = child;
+          if (child.name.includes('RightShoulder')) rightShoulderRef.current = child;
       }
       if (child.name === "EyeLeft" || child.name === "LeftEye") leftEyeRef.current = child;
       if (child.name === "EyeRight" || child.name === "RightEye") rightEyeRef.current = child;
@@ -116,6 +120,9 @@ const Avatar: React.FC<AvatarProps> = ({
         let eyeSquint = 0;
         let mouthPucker = 0;
         let jawOpen = 0;
+        
+        // Micro-movements for noise
+        const microNoise = Math.sin(t * 8) * 0.05;
 
         // 1. Manual Override Priority
         if (manualExpression !== 'neutral') {
@@ -128,34 +135,41 @@ const Avatar: React.FC<AvatarProps> = ({
             }
         } else {
             // 2. Sentiment-Driven Nuance (when neutral)
+            // Add slight randomness to expressions to make them feel alive
             switch (sentiment) {
                 case 'positive':
-                    mouthSmile = 0.3;
+                    mouthSmile = 0.3 + microNoise;
                     browInnerUp = 0.2;
+                    eyeSquint = 0.1;
                     break;
                 case 'negative':
-                    mouthFrown = 0.2;
+                    mouthFrown = 0.2 + microNoise;
                     browDown = 0.2;
                     break;
                 case 'curious':
-                    browInnerUp = 0.5;
+                    browInnerUp = 0.5 + microNoise;
                     eyeSquint = 0.2;
                     break;
                 case 'confused':
                     browDown = 0.3;
-                    mouthPucker = 0.2;
+                    mouthPucker = 0.2 + microNoise;
+                    eyeSquint = 0.4;
                     break;
                 case 'neutral':
                 default:
-                    // Subtle resting face
+                    // Subtle resting face with tiny smile
+                    mouthSmile = 0.05;
                     break;
             }
 
             // 3. Speaking/Listening Overrides
             if (userSpeaking) {
+                // Listening pose
                 browInnerUp = Math.max(browInnerUp, 0.4); 
                 mouthSmile = Math.max(mouthSmile, 0.2);
+                eyeSquint = Math.max(eyeSquint, 0.2);
             } else if (amp > 0.1) {
+                // Speaking expression
                 browInnerUp = Math.max(browInnerUp, amp * 0.5);
                 mouthSmile = Math.max(mouthSmile, 0.1 + (Math.sin(t * 5) * 0.1));
             }
@@ -221,8 +235,10 @@ const Avatar: React.FC<AvatarProps> = ({
         let targetYaw = Math.atan2(lookVector.x, lookVector.z); 
         let targetPitch = -Math.asin(lookVector.y);
 
-        const idleYaw = Math.sin(t * 0.5) * 0.05 + Math.sin(t * 1.2) * 0.02;
-        const idlePitch = Math.cos(t * 0.3) * 0.03;
+        // Advanced Idle Noise
+        // Combine multiple sine waves for non-repetitive motion
+        const idleYaw = (Math.sin(t * 0.5) * 0.05) + (Math.sin(t * 1.2) * 0.02) + (Math.cos(t * 0.35) * 0.02);
+        const idlePitch = (Math.cos(t * 0.3) * 0.03) + (Math.sin(t * 0.8) * 0.01);
         const idleRoll = Math.sin(t * 0.7) * 0.02;
 
         let nodOffsetPitch = 0;
@@ -274,9 +290,27 @@ const Avatar: React.FC<AvatarProps> = ({
         headBoneRef.current.rotation.x = THREE.MathUtils.lerp(headBoneRef.current.rotation.x, targetPitch, 0.1);
     }
     
+    // Spine & Breathing Animation
     if (spineBoneRef.current && headBoneRef.current) {
+        // Follow head slightly
         spineBoneRef.current.rotation.y = THREE.MathUtils.lerp(spineBoneRef.current.rotation.y, headBoneRef.current.rotation.y * 0.2, 0.05);
-        spineBoneRef.current.rotation.x = THREE.MathUtils.lerp(spineBoneRef.current.rotation.x, headBoneRef.current.rotation.x * 0.2, 0.05);
+        
+        // Breathing simulation
+        const breathFrequency = 0.8; // Slow breath
+        const breathAmplitude = 0.03; 
+        const breath = Math.sin(t * breathFrequency) * breathAmplitude;
+        
+        // Apply breathing to spine x-rotation (forward/back) and y-position (up/down)
+        spineBoneRef.current.rotation.x = THREE.MathUtils.lerp(spineBoneRef.current.rotation.x, (headBoneRef.current.rotation.x * 0.2) + breath, 0.05);
+        spineBoneRef.current.position.y = THREE.MathUtils.lerp(spineBoneRef.current.position.y, spineBoneRef.current.position.y + (breath * 0.1), 0.1);
+        
+        // Shoulder movements for breathing
+        if (leftShoulderRef.current) {
+            leftShoulderRef.current.position.y = THREE.MathUtils.lerp(leftShoulderRef.current.position.y, breath * 0.05, 0.05);
+        }
+        if (rightShoulderRef.current) {
+            rightShoulderRef.current.position.y = THREE.MathUtils.lerp(rightShoulderRef.current.position.y, breath * 0.05, 0.05);
+        }
     }
 
     const saccadeX = (Math.random() - 0.5) * 0.02;

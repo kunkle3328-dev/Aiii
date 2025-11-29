@@ -262,7 +262,7 @@ const StudioTool: React.FC = () => {
 
 const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode; tooltip: string }> = ({ active, onClick, children, tooltip }) => {
     return (
-        <button onClick={onClick} title={tooltip} className={`flex-1 min-w-[70px] flex flex-col items-center justify-center gap-1 p-2 transition-all duration-300 text-xs whitespace-nowrap border-b-2 ${active ? 'text-accent border-accent bg-accent/5' : 'text-text-secondary border-transparent hover:text-text-primary hover:bg-white/5'}`}>
+        <button onClick={onClick} title={tooltip} className={`flex-1 min-w-[70px] shrink-0 flex flex-col items-center justify-center gap-1 p-2 transition-all duration-300 text-xs whitespace-nowrap border-b-2 ${active ? 'text-accent border-accent bg-accent/5' : 'text-text-secondary border-transparent hover:text-text-primary hover:bg-white/5'}`}>
             {children}
         </button>
     )
@@ -288,7 +288,7 @@ export const ToolsPanel: React.FC = () => {
     
     return (
         <div className="h-full flex flex-col">
-            <div className="flex border-b border-border-color mb-4 overflow-x-auto no-scrollbar">
+            <div className="flex border-b border-border-color mb-4 overflow-x-auto custom-scrollbar pb-1">
                 <TabButton active={activeToolTab === 'tasks'} onClick={() => setActiveTab('tasks')} tooltip="Manage To-Do List"><CheckSquare className="w-5 h-5"/> Tasks</TabButton>
                 <TabButton active={activeToolTab === 'calendar'} onClick={() => setActiveTab('calendar')} tooltip="Schedule & Events"><CalendarDays className="w-5 h-5"/> Calendar</TabButton>
                 <TabButton active={activeToolTab === 'notes'} onClick={() => setActiveTab('notes')} tooltip="Quick Notes"><StickyNote className="w-5 h-5"/> Notes</TabButton>

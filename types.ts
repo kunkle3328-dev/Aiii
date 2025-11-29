@@ -38,6 +38,8 @@ export interface Settings {
     voicePitch: number;
     manualExpression: AvatarExpression;
     hasCompletedOnboarding: boolean;
+    backgroundStyle: 'cinematic' | 'abstract' | 'photorealistic' | 'cartoon' | 'cyberpunk';
+    backgroundKeywords: string;
 }
 
 export interface TranscriptEntry {

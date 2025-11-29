@@ -255,6 +255,8 @@ const defaultSettings: Settings = {
     voicePitch: 1,
     manualExpression: 'neutral',
     hasCompletedOnboarding: false,
+    backgroundStyle: 'cinematic',
+    backgroundKeywords: '',
 };
 
 const initialState: AppState = {
@@ -355,6 +357,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                      if(parsedState.settings.hasCompletedOnboarding === undefined) parsedState.settings.hasCompletedOnboarding = false;
                      // Ensure avatarStyle has a default if missing
                      if(!parsedState.settings.avatarStyle) parsedState.settings.avatarStyle = defaultSettings.avatarStyle;
+                     // Ensure background settings exist
+                     if(!parsedState.settings.backgroundStyle) parsedState.settings.backgroundStyle = defaultSettings.backgroundStyle;
+                     if(parsedState.settings.backgroundKeywords === undefined) parsedState.settings.backgroundKeywords = defaultSettings.backgroundKeywords;
                 }
 
                 // Check if the stored memory version matches. If not, use the new default.

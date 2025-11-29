@@ -20,42 +20,113 @@ export const useAgentRouter = () => {
         return aiRef.current;
     }
 
+    // Helper to fetch and convert Pollinations image to Base64
+    const fetchPollinationsFallback = async (prompt: string, aspectRatio: string): Promise<string | null> => {
+        try {
+            const width = aspectRatio === '16:9' ? 1280 : 720;
+            const height = aspectRatio === '16:9' ? 720 : 1280;
+            const seed = Math.floor(Math.random() * 10000);
+            const safePrompt = encodeURIComponent(prompt.substring(0, 1000)); // Limit length
+            
+            // Pollinations.ai URL (No API Key required)
+            const url = `https://image.pollinations.ai/prompt/${safePrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}&model=flux`;
+            
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Pollinations fetch failed");
+            
+            const blob = await response.blob();
+            
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(blob);
+            });
+        } catch (e) {
+            console.warn("Pollinations fallback failed:", e);
+            return null;
+        }
+    };
+
+    // Helper to generate a simple hash for caching
+    const generateHash = (str: string) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = (hash << 5) - hash + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash.toString();
+    };
+
     const generateMoodBackground = useCallback(async () => {
+        // 0. Check if style is none, if so, do nothing or clear
+        if (state.settings.backgroundStyle === 'none') {
+            dispatch({ type: 'SET_BACKGROUND_IMAGE', payload: null });
+            return;
+        }
+
         const ai = getAiClient();
         if (!ai) return;
 
-        dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "🎨 Analyzing conversation mood to generate background...", timestamp: Date.now() } });
+        dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "🎨 Generating new background...", timestamp: Date.now() } });
+
+        const recentTranscript = state.transcript.slice(-10).map(t => `${t.speaker}: ${t.text}`).join('\n');
+        
+        // 1. Analyze context for keywords (Lightweight text call, usually cheap/fast)
+        let finalKeywords = state.settings.backgroundKeywords || "";
+        try {
+            if (!finalKeywords && recentTranscript) {
+                // If manual keywords are empty, ask AI to extract them
+                const analysisPrompt = `Extract 3 visual keywords from this conversation for a wallpaper. CSV format only. Context: ${recentTranscript}`;
+                const analysisResponse = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: analysisPrompt,
+                });
+                finalKeywords = analysisResponse.text.trim();
+            }
+        } catch (e) {
+            console.warn("Keyword extraction failed, using defaults");
+            finalKeywords = "futuristic, abstract, neon";
+        }
+
+        const isLandscape = window.innerWidth > window.innerHeight;
+        const aspectRatio = isLandscape ? "16:9" : "9:16";
+        const userStyle = state.settings.backgroundStyle || 'cinematic';
+        
+        // Enhance prompt based on style
+        let stylePrompt = "";
+        switch (userStyle) {
+            case 'cinematic': stylePrompt = "cinematic shot, dramatic lighting, shallow depth of field, 8k, movie scene"; break;
+            case 'abstract': stylePrompt = "abstract digital art, geometric shapes, fluid gradients, modern, minimalist"; break;
+            case 'photorealistic': stylePrompt = "photorealistic, 8k, highly detailed, natural lighting, photography"; break;
+            case 'cartoon': stylePrompt = "stylized 3d render, toon shader, vibrant colors, soft lighting, pixar style"; break;
+            case 'cyberpunk': stylePrompt = "cyberpunk city, neon lights, night time, rain, high tech, futuristic"; break;
+            case 'neon-city': stylePrompt = "synthwave, retrowave, neon violet and blue, cityscape, glowing"; break;
+            case 'deep-space': stylePrompt = "deep space, nebula, stars, galaxies, cosmic, ethereal, vibrant"; break;
+            case 'zen-garden': stylePrompt = "peaceful zen garden, nature, rocks, sand, bonsai, soft sunlight, calming"; break;
+            default: stylePrompt = "high quality wallpaper";
+        }
+
+        const imagePrompt = `${stylePrompt} of ${finalKeywords}. No text, no words, background image.`;
+
+        // 2. Check Cache
+        const cacheKey = `bg_cache_${generateHash(imagePrompt + aspectRatio)}`;
+        const cachedImage = localStorage.getItem(cacheKey);
+        
+        if (cachedImage) {
+             dispatch({ type: 'SET_BACKGROUND_IMAGE', payload: cachedImage });
+             dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "✨ Background updated (Cached).", timestamp: Date.now() } });
+             return;
+        }
 
         try {
-            const recentTranscript = state.transcript.slice(-10).map(t => `${t.speaker}: ${t.text}`).join('\n');
-            const analysisPrompt = `Analyze the following conversation and extract 3-5 visual keywords that represent the mood, setting, and topic.
-            Transcript:
-            ${recentTranscript}
-            Return ONLY a comma-separated list of visual keywords (e.g., "cyberpunk city, neon rain, dark blue").`;
-
-            const analysisResponse = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: analysisPrompt,
-            });
-
-            const keywords = analysisResponse.text.trim();
-            
-            // Detect aspect ratio
-            const isLandscape = window.innerWidth > window.innerHeight;
-            const aspectRatio = isLandscape ? "16:9" : "9:16";
-
-            const imagePrompt = `A high-quality, abstract, cinematic background image representing: ${keywords}. 
-            Style: Photorealistic, 8k resolution, deep depth of field, ambient lighting. 
-            Crucial: NO text, NO watermarks, NO faces. Just scenery or abstract textures.
-            The image must be fully opaque and fill the frame.`;
-
+            // 3. Try Gemini Image Gen first
             const imageResponse = await ai.models.generateContent({
                 model: 'gemini-2.5-flash-image',
                 contents: { parts: [{ text: imagePrompt }] },
                 config: {
-                    imageConfig: {
-                        aspectRatio: aspectRatio
-                    }
+                    imageConfig: { aspectRatio: aspectRatio }
                 }
             });
 
@@ -71,38 +142,40 @@ export const useAgentRouter = () => {
 
             if (base64Image) {
                 const imageUrl = `data:image/png;base64,${base64Image}`;
+                
+                // Save to cache (limit cache size by removing random item if too large logic omitted for brevity, relying on browser quota)
+                try {
+                    localStorage.setItem(cacheKey, imageUrl);
+                } catch(e) {
+                    // Storage full, clear old cache items
+                    console.warn("Storage full, clearing background cache");
+                    Object.keys(localStorage).forEach(key => {
+                        if (key.startsWith('bg_cache_')) localStorage.removeItem(key);
+                    });
+                    try { localStorage.setItem(cacheKey, imageUrl); } catch(e) {}
+                }
+
                 dispatch({ type: 'SET_BACKGROUND_IMAGE', payload: imageUrl });
-                dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "✨ Background updated.", timestamp: Date.now() } });
+                dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "✨ Background updated (Gemini).", timestamp: Date.now() } });
+                return; // Success!
             }
 
         } catch (error: any) {
-            console.error("Background Generation Error:", error);
+            // 4. Fallback to Pollinations.ai if Gemini fails
+            console.warn("Gemini Image Gen failed, attempting fallback...", error.message);
             
-            const isRateLimit = 
-                error.message?.includes('429') || 
-                error.status === 'RESOURCE_EXHAUSTED' || 
-                (error.error && error.error.code === 429) ||
-                JSON.stringify(error).includes('RESOURCE_EXHAUSTED');
-
-            if (isRateLimit) {
-                const now = Date.now();
-                if (now - lastErrorTimeRef.current > 60000) {
-                    dispatch({
-                        type: 'ADD_TRANSCRIPT_ENTRY',
-                        payload: {
-                            id: crypto.randomUUID(),
-                            speaker: 'system',
-                            text: "⚠️ System Alert: Background generation skipped due to API Quota exceeded.",
-                            timestamp: now
-                        }
-                    });
-                    lastErrorTimeRef.current = now;
-                }
+            dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "⚠️ Gemini quota hit. Switching to backup generator...", timestamp: Date.now() } });
+            
+            const fallbackImage = await fetchPollinationsFallback(imagePrompt, aspectRatio);
+            
+            if (fallbackImage) {
+                dispatch({ type: 'SET_BACKGROUND_IMAGE', payload: fallbackImage });
+                dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "✨ Background updated (Backup System).", timestamp: Date.now() } });
             } else {
-                dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "⚠️ Failed to generate background.", timestamp: Date.now() } });
+                 dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "❌ Background generation failed.", timestamp: Date.now() } });
             }
         }
-    }, [state.transcript, dispatch]);
+    }, [state.transcript, state.settings.backgroundStyle, state.settings.backgroundKeywords, dispatch]);
 
     const analyzeSentiment = useCallback(async (text: string) => {
          const ai = getAiClient();
@@ -122,7 +195,6 @@ export const useAgentRouter = () => {
          }
     }, [dispatch]);
 
-    // AI Studio Tools
     const generateCode = useCallback(async (prompt: string) => {
         const ai = getAiClient();
         if (!ai) return "Error: No API Client";
@@ -164,7 +236,6 @@ export const useAgentRouter = () => {
         const ai = getAiClient();
         if (!ai) return;
         
-        // Trigger sentiment analysis in parallel
         analyzeSentiment(userInput);
 
         const isSearchEnabled = state.settings.googleSearchEnabled;
@@ -295,7 +366,7 @@ Payload details:
                         payload: {
                             id: crypto.randomUUID(),
                             speaker: 'system',
-                            text: "⚠️ System Alert: API Quota exceeded.",
+                            text: "⚠️ System Alert: API Quota exceeded for routing. Some agent features may be paused.",
                             timestamp: now
                         }
                     });
