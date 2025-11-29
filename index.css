@@ -79,27 +79,95 @@ html.holographic {
     --panel-backdrop-filter: blur(12px);
 }
 
+/* --- NEW THEME: QUANTUM --- */
+html.quantum {
+    --color-bg-primary: #02020a;
+    --color-bg-secondary: #0a0a1f;
+    --color-bg-tertiary: #14143a;
+    --color-text-primary: #e0f7fa;
+    --color-text-secondary: #64b5f6;
+    --color-accent: #00e5ff; /* Cyan Electric */
+    --color-accent-hover: #6effff;
+    --color-accent-secondary: #7c4dff; /* Deep Violet */
+    --color-border: rgba(0, 229, 255, 0.25);
+    --panel-bg: rgba(10, 10, 31, 0.5);
+    --panel-backdrop-filter: blur(16px);
+}
+
+/* --- NEW THEME: MIDNIGHT GLASS --- */
+html.midnight-glass {
+    --color-bg-primary: #000000;
+    --color-bg-secondary: #111111;
+    --color-bg-tertiary: #1a1a1a;
+    --color-text-primary: #ffffff;
+    --color-text-secondary: #94a3b8;
+    --color-accent: #d4af37; /* Gold */
+    --color-accent-hover: #f9d77e;
+    --color-accent-secondary: #e2e8f0; /* Silver/White */
+    --color-border: rgba(212, 175, 55, 0.15);
+    --panel-bg: rgba(20, 20, 20, 0.6);
+    --panel-backdrop-filter: blur(24px) saturate(180%);
+}
+
+/* --- NEW THEME: CRIMSON OPS (Neon Red & Midnight Black) --- */
+html.crimson-ops {
+    --color-bg-primary: #000000;
+    --color-bg-secondary: #0f0505;
+    --color-bg-tertiary: #1a0a0a;
+    --color-text-primary: #ffe6e6;
+    --color-text-secondary: #993333;
+    --color-accent: #ff0033; /* Neon Red */
+    --color-accent-hover: #ff4d6d;
+    --color-accent-secondary: #800000; /* Darker Red */
+    --color-border: rgba(255, 0, 51, 0.3);
+    --panel-bg: rgba(10, 0, 0, 0.85);
+    --panel-backdrop-filter: blur(10px) contrast(120%);
+}
+
+/* --- NEW THEME: NEON ROYAL (Royal Blue & Neon Red) --- */
+html.neon-royal {
+    --color-bg-primary: #020210;
+    --color-bg-secondary: #0a0a25;
+    --color-bg-tertiary: #14143a;
+    --color-text-primary: #f0f0ff;
+    --color-text-secondary: #7070c0;
+    --color-accent: #2e5cff; /* Royal Blue */
+    --color-accent-hover: #ff0055; /* Neon Red Interaction */
+    --color-accent-secondary: #ff0055;
+    --color-border: rgba(46, 92, 255, 0.3);
+    --panel-bg: rgba(10, 10, 37, 0.7);
+    --panel-backdrop-filter: blur(16px);
+}
+
 body {
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   transition: background-color 0.5s ease, color 0.5s ease;
   position: relative;
   overflow: hidden;
+  width: 100vw;
+  height: 100vh;
 }
 
+/* --- Background Animations via Pseudo Elements --- */
+
+/* Cyberpunk Grid Background */
 html.cyberpunk body::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: -50%; left: -50%; right: -50%; bottom: -50%;
     background-image:
         linear-gradient(var(--color-accent) 1px, transparent 1px),
         linear-gradient(to right, var(--color-accent) 1px, transparent 1px);
-    background-size: 40px 40px;
-    opacity: 0.1;
+    background-size: 60px 60px;
+    opacity: 0.08;
+    transform: perspective(500px) rotateX(60deg);
+    animation: grid-scroll 20s linear infinite;
     pointer-events: none;
     z-index: -1;
 }
 
+/* Holographic Particle/Gradient Background */
 html.holographic body::before {
     content: "";
     position: absolute;
@@ -107,19 +175,115 @@ html.holographic body::before {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(
-        135deg,
-        rgba(136, 136, 255, 0.05) 25%,
-        transparent 25%,
-        transparent 50%,
-        rgba(136, 136, 255, 0.05) 50%,
-        rgba(136, 136, 255, 0.05) 75%,
-        transparent 75%,
-        transparent
+    background: radial-gradient(
+        circle at 50% 50%,
+        rgba(136, 136, 255, 0.1),
+        transparent 70%
     );
-    background-size: 40px 40px;
+    background-size: 100% 100%;
     z-index: -1;
     pointer-events: none;
+    animation: pulse-glow 8s ease-in-out infinite alternate;
+}
+
+/* Quantum Animated Grid & Pulse */
+html.quantum body::before {
+    content: '';
+    position: absolute;
+    inset: -50%;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(124, 77, 255, 0.15) 0%, transparent 60%),
+        linear-gradient(0deg, rgba(0, 229, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.05) 1px, transparent 1px);
+    background-size: 100% 100%, 80px 80px, 80px 80px;
+    z-index: -1;
+    transform: perspective(1000px) rotateX(10deg) scale(1.5);
+    animation: quantum-shift 40s linear infinite;
+    pointer-events: none;
+}
+
+/* Midnight Glass Ambient Flow */
+html.midnight-glass body::before {
+    content: '';
+    position: absolute;
+    inset: -50%;
+    background: 
+        radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.08), transparent 40%),
+        radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.03), transparent 40%);
+    z-index: -1;
+    animation: gold-drift 20s ease-in-out infinite alternate;
+    filter: blur(60px);
+    pointer-events: none;
+}
+
+/* Crimson Ops: Radar/Scanline Effect */
+html.crimson-ops body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        repeating-linear-gradient(
+            0deg,
+            transparent 0%,
+            transparent 50%,
+            rgba(255, 0, 51, 0.03) 50%,
+            rgba(255, 0, 51, 0.03) 51%
+        ),
+        radial-gradient(circle at 50% 50%, rgba(255, 0, 51, 0.08), transparent 80%);
+    background-size: 100% 4px, 100% 100%;
+    pointer-events: none;
+    z-index: -1;
+    animation: scanlines 4s linear infinite;
+}
+
+/* Neon Royal: Aurora Drift Effect */
+html.neon-royal body::before {
+    content: '';
+    position: absolute;
+    inset: -50%;
+    background: conic-gradient(
+        from 0deg at 50% 50%,
+        rgba(46, 92, 255, 0.15) 0deg,
+        transparent 90deg,
+        rgba(255, 0, 85, 0.15) 180deg,
+        transparent 270deg,
+        rgba(46, 92, 255, 0.15) 360deg
+    );
+    animation: royal-spin 20s linear infinite;
+    filter: blur(80px);
+    z-index: -1;
+    pointer-events: none;
+}
+
+@keyframes grid-scroll {
+    0% { transform: perspective(500px) rotateX(60deg) translateY(0); }
+    100% { transform: perspective(500px) rotateX(60deg) translateY(60px); }
+}
+
+@keyframes pulse-glow {
+    0% { opacity: 0.5; transform: scale(1); }
+    100% { opacity: 0.8; transform: scale(1.1); }
+}
+
+@keyframes quantum-shift {
+    0% { background-position: 0 0, 0 0, 0 0; transform: perspective(1000px) rotateX(10deg) scale(1.5) rotateZ(0deg); }
+    100% { background-position: 0 0, 0 80px, 80px 0; transform: perspective(1000px) rotateX(10deg) scale(1.5) rotateZ(2deg); }
+}
+
+@keyframes gold-drift {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    100% { transform: translate(-5%, -5%) rotate(5deg); }
+}
+
+@keyframes scanlines {
+    0% { background-position: 0 0; opacity: 0.8; }
+    50% { opacity: 0.4; }
+    100% { background-position: 0 20px; opacity: 0.8; }
+}
+
+@keyframes royal-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* Glassmorphism Panel Style */
@@ -128,6 +292,7 @@ html.holographic body::before {
   backdrop-filter: var(--panel-backdrop-filter);
   -webkit-backdrop-filter: var(--panel-backdrop-filter);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  border: 1px solid var(--color-border);
 }
 
 /* Scrollbar Styles */

@@ -1,3 +1,4 @@
+
 import React, { Suspense, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Environment, useTexture } from '@react-three/drei';
@@ -12,7 +13,7 @@ interface AvatarCanvasProps {
     connectionState: ConnectionState;
 }
 
-// Background component that locks to camera to ensure full coverage
+// Background component that locks to camera and fills the view
 const Background: React.FC<{ url: string }> = ({ url }) => {
     const texture = useTexture(url);
     const meshRef = useRef<THREE.Mesh>(null);
@@ -23,20 +24,19 @@ const Background: React.FC<{ url: string }> = ({ url }) => {
             // Lock background to camera movement
             meshRef.current.position.copy(camera.position);
             meshRef.current.quaternion.copy(camera.quaternion);
-            // Push it back 10 units
             meshRef.current.translateZ(-10);
         }
     });
 
-    // Calculate scale based on FOV and distance (10) to cover screen
-    // Height = 2 * tan(fov/2) * distance
+    // Calculate dimensions to cover the frustum at distance 10
     const distance = 10;
-    const vFov = (camera.fov * Math.PI) / 180;
+    // Standard PerspectiveCamera math
+    const vFov = THREE.MathUtils.degToRad(camera instanceof THREE.PerspectiveCamera ? camera.fov : 30);
     const height = 2 * Math.tan(vFov / 2) * distance;
     const width = height * viewport.aspect;
 
     return (
-        <mesh ref={meshRef} scale={[width * 1.1, height * 1.1, 1]}>
+        <mesh ref={meshRef} scale={[width, height, 1]}>
             <planeGeometry />
             <meshBasicMaterial map={texture} toneMapped={false} side={THREE.DoubleSide} />
         </mesh>
@@ -68,6 +68,7 @@ export const AvatarCanvas: React.FC<AvatarCanvasProps> = ({
                     
                     <group position={[0, -0.7, 0]}>
                         <Avatar
+                            key={state.settings.avatarStyle} 
                             modelAmplitude={modelAmplitude}
                             userSpeaking={userSpeaking}
                             connectionState={connectionState}

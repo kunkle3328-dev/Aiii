@@ -6,9 +6,6 @@ import * as THREE from 'three';
 import { ConnectionState, AvatarExpression, AppState } from '../types';
 import { useAppContext } from '../context/AppContext';
 
-const AVATAR_URL =
-  "https://models.readyplayer.me/69189159786317131c5bb99a.glb?morphTargets=ARKit,Oculus%20Visemes";
-  
 const visemeMap: { [key: string]: string } = {
   sil: "viseme_sil",
   PP: "viseme_PP",
@@ -44,9 +41,12 @@ const Avatar: React.FC<AvatarProps> = ({
 }) => {
   const { state } = useAppContext();
   const sentiment = state.sentiment; // Get sentiment from global state
-
+  
+  // Use avatar URL from settings, defaulting to the Aura model if somehow missing
+  const avatarUrl = state.settings.avatarStyle || "https://models.readyplayer.me/69189159786317131c5bb99a.glb?morphTargets=ARKit,Oculus%20Visemes";
+  
   const group = useRef<THREE.Group>(null);
-  const { scene } = useGLTF(AVATAR_URL) as any;
+  const { scene } = useGLTF(avatarUrl) as any;
 
   const headMeshRef = useRef<THREE.SkinnedMesh | null>(null);
   const leftEyeRef = useRef<THREE.Object3D | null>(null);
@@ -302,4 +302,3 @@ const Avatar: React.FC<AvatarProps> = ({
 };
 
 export default Avatar;
-useGLTF.preload(AVATAR_URL);

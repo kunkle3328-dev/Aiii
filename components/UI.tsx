@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState } from 'react';
 import { ConnectionState, TranscriptEntry, ActivePanel } from '../types';
 import { Transcript } from './Transcript';
@@ -29,17 +28,14 @@ const ModalWrapper: React.FC<{ title: string, panelId: ActivePanel, children: Re
     useEffect(() => {
         if (isActive) {
             setShouldRender(true);
-            // Small timeout to allow the browser to paint the 'shouldRender' state before adding the 'visible' class
-            // This triggers the CSS transition
             requestAnimationFrame(() => {
                  requestAnimationFrame(() => setIsVisible(true));
             });
         } else {
             setIsVisible(false);
-            // Wait for the transition duration before unmounting
             const timer = setTimeout(() => {
                 setShouldRender(false);
-            }, 400); // Matches the 400ms duration in index.html (roughly)
+            }, 300); // Slightly faster close for responsiveness
             return () => clearTimeout(timer);
         }
     }, [isActive]);
@@ -48,24 +44,27 @@ const ModalWrapper: React.FC<{ title: string, panelId: ActivePanel, children: Re
 
     return (
         <div 
-            className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ease-out
-                ${isVisible ? 'bg-primary/60 backdrop-blur-sm opacity-100' : 'bg-transparent backdrop-blur-none opacity-0'}
+            className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
+                ${isVisible ? 'bg-primary/60 backdrop-blur-md opacity-100' : 'bg-transparent backdrop-blur-none opacity-0'}
             `}
             onClick={() => dispatch({ type: 'SET_ACTIVE_PANEL', payload: null })}
         >
             <div 
-                className={`panel-glass rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col border border-border-color transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)]
-                    ${isVisible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-10 scale-95 opacity-0'}
+                className={`panel-glass rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-lg max-h-[85vh] flex flex-col border border-border-color transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]
+                    ${isVisible ? 'translate-y-0 scale-100 opacity-100 rotate-0' : 'translate-y-20 scale-90 opacity-0 rotate-[-2deg]'}
                 `}
                 onClick={(e) => e.stopPropagation()} 
             >
-                <div className="flex justify-between items-center p-4 border-b border-border-color">
-                    <h2 className="text-xl font-bold text-accent">{title}</h2>
-                    <button onClick={() => dispatch({ type: 'SET_ACTIVE_PANEL', payload: null })} className="p-2 rounded-full hover:bg-tertiary transition-colors">
+                <div className="flex justify-between items-center p-4 border-b border-border-color bg-gradient-to-r from-white/5 to-transparent">
+                    <h2 className="text-xl font-bold text-accent tracking-wide flex items-center gap-2">
+                        <span className="w-2 h-6 bg-accent rounded-full shadow-[0_0_10px_var(--color-accent)]"></span>
+                        {title}
+                    </h2>
+                    <button onClick={() => dispatch({ type: 'SET_ACTIVE_PANEL', payload: null })} title="Close Panel" className="p-2 rounded-full hover:bg-white/10 text-text-secondary hover:text-white transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
                 </div>
-                <div className="p-4 overflow-y-auto custom-scrollbar">
+                <div className="p-4 overflow-y-auto custom-scrollbar flex-grow">
                     {children}
                 </div>
             </div>
@@ -84,16 +83,16 @@ export const UI: React.FC<UIProps> = (props) => {
             </div>
 
             <div className="pointer-events-auto">
-                <ModalWrapper title="Tools" panelId="tools">
+                <ModalWrapper title="Productivity Tools" panelId="tools">
                     <ToolsPanel />
                 </ModalWrapper>
-                 <ModalWrapper title="Search Results" panelId="search">
+                 <ModalWrapper title="Internet Search" panelId="search">
                     <SearchPanel />
                 </ModalWrapper>
-                <ModalWrapper title="Long-Term Memory" panelId="memory">
+                <ModalWrapper title="Neural Memory" panelId="memory">
                     <MemoryPanel />
                 </ModalWrapper>
-                <ModalWrapper title="Settings" panelId="settings">
+                <ModalWrapper title="System Settings" panelId="settings">
                     <SettingsPanel />
                 </ModalWrapper>
             </div>

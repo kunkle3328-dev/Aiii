@@ -1,10 +1,10 @@
 const CACHE_NAME = 'aura-ai-v1';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/index.tsx',
-  '/index.css',
-  '/manifest.json'
+  './',
+  './index.html',
+  './index.tsx',
+  './index.css',
+  './manifest.json'
 ];
 
 self.addEventListener('install', (event) => {

@@ -15,16 +15,29 @@ const Select: React.FC<{ value: string; onChange: (e: React.ChangeEvent<HTMLSele
     <select
         value={value}
         onChange={onChange}
-        className="bg-tertiary border border-border-color rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-accent"
+        className="bg-tertiary border border-border-color rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-accent w-48 text-ellipsis"
     >
         {children}
     </select>
+);
+
+const Input: React.FC<{ value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; placeholder?: string }> = ({ value, onChange, placeholder }) => (
+    <input
+        type="text"
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="bg-tertiary border border-border-color rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-accent w-full mt-2"
+    />
 );
 
 export const SettingsPanel: React.FC = () => {
     const { state, dispatch } = useAppContext();
     const { generateMoodBackground } = useAgentRouter();
     const [generatingBg, setGeneratingBg] = useState(false);
+    
+    // Default avatar used in the app
+    const AURA_DEFAULT = "https://models.readyplayer.me/69189159786317131c5bb99a.glb?morphTargets=ARKit,Oculus%20Visemes";
 
     const handleSettingChange = <K extends keyof Settings,>(key: K, value: Settings[K]) => {
         dispatch({ type: 'UPDATE_SETTINGS', payload: { [key]: value } });
@@ -37,13 +50,25 @@ export const SettingsPanel: React.FC = () => {
     };
     
     const themeOptions = [
-        { value: 'dark', label: 'Dark' },
+        { value: 'dark', label: 'Dark (Default)' },
         { value: 'light', label: 'Light' },
-        { value: 'cyberpunk', label: 'Cyberpunk' },
-        { value: 'holographic', label: 'Holographic' },
+        { value: 'cyberpunk', label: 'Cyberpunk Neon' },
+        { value: 'holographic', label: 'Holographic Blue' },
+        { value: 'quantum', label: 'Quantum (Animated)' },
+        { value: 'midnight-glass', label: 'Midnight Glass (Premium)' },
+        { value: 'crimson-ops', label: 'Crimson Ops (Red/Black)' },
+        { value: 'neon-royal', label: 'Neon Royal (Blue/Red)' },
+    ];
+    
+    const avatarOptions = [
+        { value: AURA_DEFAULT, label: 'Aura (Default)' },
+        { value: 'custom', label: 'Custom URL (ReadyPlayerMe)' }
     ];
 
     const expressions: AvatarExpression[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'thinking'];
+    
+    // Determine current selection for dropdown (either default or custom)
+    const currentAvatarSelection = state.settings.avatarStyle === AURA_DEFAULT ? AURA_DEFAULT : 'custom';
 
     return (
         <div className="space-y-4">
@@ -56,6 +81,41 @@ export const SettingsPanel: React.FC = () => {
                     {themeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </Select>
             </SettingRow>
+            
+            <SettingRow label="Avatar Model">
+                <div className="flex flex-col items-end">
+                     <Select
+                        value={currentAvatarSelection}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val !== 'custom') {
+                                handleSettingChange('avatarStyle', val);
+                            } else {
+                                // If switching to custom but no URL yet, keep current or clear it? 
+                                // Best to keep current until user types something, but we need to update the dropdown UI
+                                // Effectively we treat 'custom' logic by checking if URL matches known presets
+                                // For now, if they select custom, we just let them edit the text box below.
+                                // If they select Default, we overwrite the setting.
+                                handleSettingChange('avatarStyle', '');
+                            }
+                        }}
+                    >
+                        {avatarOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </Select>
+                </div>
+            </SettingRow>
+            
+            {/* Show input if Custom is selected or if the current URL isn't one of the presets */}
+            {(currentAvatarSelection === 'custom') && (
+                <div className="pb-3 border-b border-border-color">
+                    <label className="text-xs text-text-secondary block mb-1">Custom Ready Player Me GLB URL (must support ARKit)</label>
+                    <Input 
+                        value={state.settings.avatarStyle}
+                        onChange={(e) => handleSettingChange('avatarStyle', e.target.value)}
+                        placeholder="https://models.readyplayer.me/..."
+                    />
+                </div>
+            )}
 
             <SettingRow label="Dynamic Background">
                  <button

@@ -39,14 +39,24 @@ export const useAgentRouter = () => {
             });
 
             const keywords = analysisResponse.text.trim();
+            
+            // Detect aspect ratio
+            const isLandscape = window.innerWidth > window.innerHeight;
+            const aspectRatio = isLandscape ? "16:9" : "9:16";
+
             const imagePrompt = `A high-quality, abstract, cinematic background image representing: ${keywords}. 
             Style: Photorealistic, 8k resolution, deep depth of field, ambient lighting. 
-            Aspect Ratio: 1:1 (Square) - designed to be cropped/filled on screens.
-            Crucial: NO text, NO watermarks, NO faces. Just scenery or abstract textures.`;
+            Crucial: NO text, NO watermarks, NO faces. Just scenery or abstract textures.
+            The image must be fully opaque and fill the frame.`;
 
             const imageResponse = await ai.models.generateContent({
                 model: 'gemini-2.5-flash-image',
-                contents: { parts: [{ text: imagePrompt }] }
+                contents: { parts: [{ text: imagePrompt }] },
+                config: {
+                    imageConfig: {
+                        aspectRatio: aspectRatio
+                    }
+                }
             });
 
             let base64Image = null;
@@ -75,15 +85,19 @@ export const useAgentRouter = () => {
                 JSON.stringify(error).includes('RESOURCE_EXHAUSTED');
 
             if (isRateLimit) {
-                dispatch({ 
-                    type: 'ADD_TRANSCRIPT_ENTRY', 
-                    payload: { 
-                        id: crypto.randomUUID(), 
-                        speaker: 'system', 
-                        text: "⚠️ System Alert: Background generation skipped due to API Quota exceeded.", 
-                        timestamp: Date.now() 
-                    } 
-                });
+                const now = Date.now();
+                if (now - lastErrorTimeRef.current > 60000) {
+                    dispatch({
+                        type: 'ADD_TRANSCRIPT_ENTRY',
+                        payload: {
+                            id: crypto.randomUUID(),
+                            speaker: 'system',
+                            text: "⚠️ System Alert: Background generation skipped due to API Quota exceeded.",
+                            timestamp: now
+                        }
+                    });
+                    lastErrorTimeRef.current = now;
+                }
             } else {
                 dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "⚠️ Failed to generate background.", timestamp: Date.now() } });
             }

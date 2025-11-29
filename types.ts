@@ -29,7 +29,7 @@ export interface Memory {
 export type AvatarExpression = 'neutral' | 'happy' | 'sad' | 'angry' | 'surprised' | 'thinking';
 
 export interface Settings {
-    theme: 'light' | 'dark' | 'cyberpunk' | 'holographic';
+    theme: 'light' | 'dark' | 'cyberpunk' | 'holographic' | 'quantum' | 'midnight-glass' | 'crimson-ops' | 'neon-royal';
     avatarStyle: string;
     continuousListening: boolean;
     googleSearchEnabled: boolean;

@@ -247,7 +247,7 @@ const defaultMemory: Memory = {
 
 const defaultSettings: Settings = {
     theme: 'dark',
-    avatarStyle: 'default',
+    avatarStyle: 'https://models.readyplayer.me/69189159786317131c5bb99a.glb?morphTargets=ARKit,Oculus%20Visemes',
     continuousListening: true,
     googleSearchEnabled: true,
     voice: 'Zephyr',
@@ -353,6 +353,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 if (parsedState.settings) {
                      if(!parsedState.settings.manualExpression) parsedState.settings.manualExpression = 'neutral';
                      if(parsedState.settings.hasCompletedOnboarding === undefined) parsedState.settings.hasCompletedOnboarding = false;
+                     // Ensure avatarStyle has a default if missing
+                     if(!parsedState.settings.avatarStyle) parsedState.settings.avatarStyle = defaultSettings.avatarStyle;
                 }
 
                 // Check if the stored memory version matches. If not, use the new default.
