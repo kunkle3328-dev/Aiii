@@ -5,6 +5,16 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ConnectionState } from '../types';
 
+// Fix for TypeScript not recognizing R3F elements in JSX.IntrinsicElements
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      group: any;
+      primitive: any;
+    }
+  }
+}
+
 const AVATAR_URL =
   "https://models.readyplayer.me/69189159786317131c5bb99a.glb?morphTargets=ARKit,Oculus%20Visemes";
   
@@ -119,7 +129,7 @@ const Avatar: React.FC<AvatarProps> = ({
         });
 
         // 1. ADVANCED LIP SYNC ENGINE
-        if (amp > 0.02) {
+        if (amp > 0.01) {
             // Update target viseme periodically to simulate syllables
             if (time > visemeTimerRef.current) {
                 // Pick a new vowel based on noise or randomness
@@ -129,8 +139,13 @@ const Avatar: React.FC<AvatarProps> = ({
                 visemeTimerRef.current = time + 0.1 + Math.random() * 0.1;
             }
 
-            // Apply opening base on amplitude
-            const mouthOpen = Math.min(amp * 4.0, 1.0); // Boost amplitude effect
+            // Apply opening based on Non-Linear Amplitude (Sqrt)
+            // This boosts quiet signals significantly.
+            // amp=0.01 -> sqrt=0.1 -> *4 = 0.4 (Visible)
+            // amp=0.10 -> sqrt=0.31 -> *4 = 1.0 (Full)
+            let rawOpen = Math.sqrt(amp) * 3.5;
+            const mouthOpen = Math.min(rawOpen, 1.0);
+            
             mouthOpenRef.current = THREE.MathUtils.lerp(mouthOpenRef.current, mouthOpen, 0.3);
             
             // Blend to target viseme
@@ -140,7 +155,6 @@ const Avatar: React.FC<AvatarProps> = ({
             }
             
             // Occasionally blend in closed mouth consonants (P, M, B) for realism
-            // If amplitude drops momentarily or randomly
             if (Math.sin(t * 20) > 0.8 || amp < 0.05) {
                  const ppIndex = dict['viseme_PP'];
                  if (ppIndex !== undefined) infl[ppIndex] = THREE.MathUtils.lerp(infl[ppIndex], 0.5, 0.4);
@@ -161,8 +175,7 @@ const Avatar: React.FC<AvatarProps> = ({
         // Lift brows slightly when user speaks (Listening/Interest)
         // Furrow brows slightly if avatar is thinking (silence + high randomness)
         let browInnerUpTarget = 0;
-        let browDownTarget = 0;
-
+        
         if (userSpeaking) {
              browInnerUpTarget = 0.4; // Interested
         } else if (amp > 0.1) {
@@ -186,9 +199,14 @@ const Avatar: React.FC<AvatarProps> = ({
     if (headBoneRef.current) {
         // Calculate direction to camera
         const headPos = headBoneRef.current.position;
+        // Use standard LookAt logic by calculating rotation
+        // Camera is at +Z, Model faces +Z (typically). 
+        // We calculate vector from Head to Camera.
         const lookVector = new THREE.Vector3().subVectors(camera.position, headPos).normalize();
         
+        // Atan2 provides the yaw angle (Y-axis rotation)
         let targetYaw = Math.atan2(lookVector.x, lookVector.z); 
+        // Asin provides the pitch angle (X-axis rotation)
         let targetPitch = -Math.asin(lookVector.y);
 
         // -- IDLE NOISE --

@@ -1,6 +1,4 @@
 
-
-// FIX: Imported 'useRef' to resolve 'Cannot find name' error.
 import { useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { useAppContext } from '../context/AppContext';
@@ -9,6 +7,7 @@ import { Task, Note, CalendarEvent, SearchResult } from '../types';
 export const useAgentRouter = () => {
     const { state, dispatch } = useAppContext();
     const aiRef = useRef<GoogleGenAI | null>(null);
+    const lastErrorTimeRef = useRef<number>(0);
 
     const routeIntent = useCallback(async (userInput: string) => {
         if (!process.env.API_KEY) {
@@ -152,23 +151,31 @@ If updating memory, specify the key and new value.
             }
 
         } catch (error: any) {
-            console.error("Error in agent router:", error);
             // Handle Quota/Rate Limit Errors
-            if (
+            const isRateLimit = 
                 error.message?.includes('429') || 
                 error.status === 'RESOURCE_EXHAUSTED' || 
                 (error.error && error.error.code === 429) ||
-                JSON.stringify(error).includes('RESOURCE_EXHAUSTED')
-            ) {
-                dispatch({
-                    type: 'ADD_TRANSCRIPT_ENTRY',
-                    payload: {
-                        id: crypto.randomUUID(),
-                        speaker: 'system',
-                        text: "⚠️ System Alert: Usage limit exceeded (Rate Limit). The Agent Router is temporarily unavailable. Please try again later.",
-                        timestamp: Date.now()
-                    }
-                });
+                JSON.stringify(error).includes('RESOURCE_EXHAUSTED');
+
+            if (isRateLimit) {
+                console.warn("Agent Router Rate Limit Exceeded (429)");
+                const now = Date.now();
+                // Throttle alerts: only show one every 60 seconds
+                if (now - lastErrorTimeRef.current > 60000) {
+                    dispatch({
+                        type: 'ADD_TRANSCRIPT_ENTRY',
+                        payload: {
+                            id: crypto.randomUUID(),
+                            speaker: 'system',
+                            text: "⚠️ System Alert: API Quota exceeded. The smart agent features are temporarily paused. Please check your billing or try again later.",
+                            timestamp: now
+                        }
+                    });
+                    lastErrorTimeRef.current = now;
+                }
+            } else {
+                console.error("Error in agent router:", error);
             }
         }
 

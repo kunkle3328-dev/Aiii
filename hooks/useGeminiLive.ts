@@ -1,6 +1,6 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { GoogleGenAI, LiveSession, LiveServerMessage, Modality } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { ConnectionState } from '../types';
 import { useAppContext } from '../context/AppContext';
 import { useAgentRouter } from './useAgentRouter';
@@ -55,7 +55,7 @@ export const useGeminiLive = () => {
     const [userAmplitude, setUserAmplitude] = useState(0);
     const [modelAmplitude, setModelAmplitude] = useState(0);
 
-    const sessionPromiseRef = useRef<Promise<LiveSession> | null>(null);
+    const sessionPromiseRef = useRef<Promise<any> | null>(null);
     const inputAudioContextRef = useRef<AudioContext | null>(null);
     const outputAudioContextRef = useRef<AudioContext | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -78,8 +78,12 @@ export const useGeminiLive = () => {
             cancelAnimationFrame(animationFrameRef.current);
         }
         if (sessionPromiseRef.current) {
-            const session = await sessionPromiseRef.current;
-            session.close();
+            try {
+                const session = await sessionPromiseRef.current;
+                session.close();
+            } catch (e) {
+                console.warn("Session close error", e);
+            }
             sessionPromiseRef.current = null;
         }
         if (mediaStreamRef.current) {
@@ -277,9 +281,24 @@ export const useGeminiLive = () => {
                 },
             });
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to start session:", error);
             setConnectionState('error');
+
+             // Check for specific API error (Quota Exceeded / Rate Limit)
+            const errorMessage = error.message || JSON.stringify(error);
+            if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+                dispatch({
+                    type: 'ADD_TRANSCRIPT_ENTRY',
+                    payload: {
+                        id: crypto.randomUUID(),
+                        speaker: 'system',
+                        text: "⚠️ System Alert: API Quota exceeded. The session could not be started. Please check your billing or try again later.",
+                        timestamp: Date.now()
+                    }
+                });
+            }
+
             await stopSession();
         }
     }, [connectionState, stopSession, analyzeAudio, state.settings.voice, state.memory, state.settings.googleSearchEnabled, isMuted, routeIntent, dispatch]);
