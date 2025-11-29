@@ -1,19 +1,8 @@
-
 import React, { useRef, useEffect } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ConnectionState } from '../types';
-
-// Fix for TypeScript not recognizing R3F elements in JSX.IntrinsicElements
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      group: any;
-      primitive: any;
-    }
-  }
-}
 
 const AVATAR_URL =
   "https://models.readyplayer.me/69189159786317131c5bb99a.glb?morphTargets=ARKit,Oculus%20Visemes";

@@ -1,21 +1,8 @@
-
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import Avatar from './Avatar';
 import { ConnectionState } from '../types';
-
-// Fix for TypeScript not recognizing R3F elements in JSX.IntrinsicElements
-declare global {
-    namespace JSX {
-        interface IntrinsicElements {
-            ambientLight: any;
-            directionalLight: any;
-            pointLight: any;
-            group: any;
-        }
-    }
-}
 
 interface AvatarCanvasProps {
     modelAmplitude: number;

@@ -33,6 +33,12 @@ declare global {
       polygon: any;
       rect: any;
       circle: any;
+      // Three.js elements
+      group: any;
+      primitive: any;
+      ambientLight: any;
+      directionalLight: any;
+      pointLight: any;
     }
   }
 }
