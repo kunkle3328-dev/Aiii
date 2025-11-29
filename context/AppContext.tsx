@@ -253,6 +253,8 @@ const defaultSettings: Settings = {
     voice: 'Zephyr',
     voiceSpeed: 1,
     voicePitch: 1,
+    manualExpression: 'neutral',
+    hasCompletedOnboarding: false,
 };
 
 const initialState: AppState = {
@@ -269,6 +271,8 @@ const initialState: AppState = {
         result: null,
         error: null,
     },
+    backgroundImage: null,
+    sentiment: 'neutral',
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -317,6 +321,12 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, transcript: [] };
         case 'LOAD_STATE':
             return { ...state, ...action.payload };
+        case 'SET_BACKGROUND_IMAGE':
+            return { ...state, backgroundImage: action.payload };
+        case 'SET_SENTIMENT':
+            return { ...state, sentiment: action.payload };
+        case 'COMPLETE_ONBOARDING':
+            return { ...state, settings: { ...state.settings, hasCompletedOnboarding: true } };
         default:
             return state;
     }
@@ -338,19 +348,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const storedState = localStorage.getItem('aiAssistantState');
             if (storedState) {
                 const parsedState = JSON.parse(storedState);
-                // We typically load the state from local storage, BUT since we want to enforce
-                // the new defaultMemory for this update, we will merge carefully.
-                // However, to ensure the new persona takes effect immediately for the user,
-                // we might want to prioritize the new defaultMemory structure if the old one is incompatible.
-                // For safety, let's allow the saved state to override, but the user can reset memory via the panel if needed.
-                // Actually, the prompt implies "always use this".
-                // To force the update, we can ignore the stored memory for this session, 
-                // OR we can merge the new fields.
                 
-                // For this specific request, we will Load everything EXCEPT memory from storage
-                // effectively "resetting" memory to the new JSON, while keeping tasks/notes/settings.
-                // If you want to persist the new memory, it will save on the next update.
-                
+                // Ensure manualExpression exists in settings if loading old state
+                if (parsedState.settings) {
+                     if(!parsedState.settings.manualExpression) parsedState.settings.manualExpression = 'neutral';
+                     if(parsedState.settings.hasCompletedOnboarding === undefined) parsedState.settings.hasCompletedOnboarding = false;
+                }
+
                 // Check if the stored memory version matches. If not, use the new default.
                 const storedMeta = parsedState.memory?.meta?.version;
                 const newMeta = defaultMemory.meta?.version;
@@ -368,14 +372,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, []);
     
     useEffect(() => {
-        // This is the single source of truth for applying the theme class.
         document.documentElement.className = state.settings.theme;
     }, [state.settings.theme]);
 
     useEffect(() => {
         try {
-            // Save state, excluding transient state like activePanel
-            const stateToSave = { ...state, activePanel: null };
+            // Save state, excluding transient state like activePanel and large backgroundImage
+            const { activePanel, backgroundImage, ...stateToSave } = state;
             localStorage.setItem('aiAssistantState', JSON.stringify(stateToSave));
         } catch (error) {
             console.error("Failed to save state to localStorage", error);

@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Settings } from '../types';
+import { Settings, AvatarExpression } from '../types';
+import { useAgentRouter } from '../hooks/useAgentRouter';
 
 const SettingRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
     <div className="flex justify-between items-center py-3 border-b border-border-color">
@@ -22,9 +23,17 @@ const Select: React.FC<{ value: string; onChange: (e: React.ChangeEvent<HTMLSele
 
 export const SettingsPanel: React.FC = () => {
     const { state, dispatch } = useAppContext();
+    const { generateMoodBackground } = useAgentRouter();
+    const [generatingBg, setGeneratingBg] = useState(false);
 
     const handleSettingChange = <K extends keyof Settings,>(key: K, value: Settings[K]) => {
         dispatch({ type: 'UPDATE_SETTINGS', payload: { [key]: value } });
+    };
+
+    const handleGenerateBackground = async () => {
+        setGeneratingBg(true);
+        await generateMoodBackground();
+        setGeneratingBg(false);
     };
     
     const themeOptions = [
@@ -33,6 +42,8 @@ export const SettingsPanel: React.FC = () => {
         { value: 'cyberpunk', label: 'Cyberpunk' },
         { value: 'holographic', label: 'Holographic' },
     ];
+
+    const expressions: AvatarExpression[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'thinking'];
 
     return (
         <div className="space-y-4">
@@ -45,6 +56,35 @@ export const SettingsPanel: React.FC = () => {
                     {themeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </Select>
             </SettingRow>
+
+            <SettingRow label="Dynamic Background">
+                 <button
+                    onClick={handleGenerateBackground}
+                    disabled={generatingBg}
+                    className="bg-accent text-primary-dark font-bold py-1 px-3 rounded-md text-sm transition-all hover:bg-accent-hover disabled:opacity-50"
+                >
+                    {generatingBg ? 'Generating...' : 'Generate from Mood'}
+                </button>
+            </SettingRow>
+
+            <h3 className="text-lg font-semibold text-accent mt-6">Avatar Expressions (Test)</h3>
+            <div className="grid grid-cols-3 gap-2">
+                {expressions.map(expr => (
+                    <button
+                        key={expr}
+                        onClick={() => handleSettingChange('manualExpression', expr)}
+                        className={`py-2 px-1 text-sm rounded-md transition-colors border border-border-color
+                            ${state.settings.manualExpression === expr 
+                                ? 'bg-accent text-primary-dark font-bold border-accent' 
+                                : 'bg-tertiary text-text-secondary hover:text-text-primary'
+                            }
+                        `}
+                    >
+                        {expr.charAt(0).toUpperCase() + expr.slice(1)}
+                    </button>
+                ))}
+            </div>
+
 
             <h3 className="text-lg font-semibold text-accent mt-6">Voice</h3>
             <SettingRow label="Assistant Voice">

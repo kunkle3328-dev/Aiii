@@ -14,6 +14,8 @@ declare global {
       h2: any;
       h3: any;
       p: any;
+      b: any;
+      pre: any;
       main: any;
       button: any;
       input: any;
@@ -39,6 +41,9 @@ declare global {
       ambientLight: any;
       directionalLight: any;
       pointLight: any;
+      mesh: any;
+      planeGeometry: any;
+      meshBasicMaterial: any;
     }
   }
 }

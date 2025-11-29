@@ -1,8 +1,10 @@
-import React, { Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { Environment } from '@react-three/drei';
+import React, { Suspense, useRef } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import { Environment, useTexture } from '@react-three/drei';
+import * as THREE from 'three';
 import Avatar from './Avatar';
 import { ConnectionState } from '../types';
+import { useAppContext } from '../context/AppContext';
 
 interface AvatarCanvasProps {
     modelAmplitude: number;
@@ -10,32 +12,66 @@ interface AvatarCanvasProps {
     connectionState: ConnectionState;
 }
 
+// Background component that locks to camera to ensure full coverage
+const Background: React.FC<{ url: string }> = ({ url }) => {
+    const texture = useTexture(url);
+    const meshRef = useRef<THREE.Mesh>(null);
+    const { camera, viewport } = useThree();
+
+    useFrame(() => {
+        if (meshRef.current) {
+            // Lock background to camera movement
+            meshRef.current.position.copy(camera.position);
+            meshRef.current.quaternion.copy(camera.quaternion);
+            // Push it back 10 units
+            meshRef.current.translateZ(-10);
+        }
+    });
+
+    // Calculate scale based on FOV and distance (10) to cover screen
+    // Height = 2 * tan(fov/2) * distance
+    const distance = 10;
+    const vFov = (camera.fov * Math.PI) / 180;
+    const height = 2 * Math.tan(vFov / 2) * distance;
+    const width = height * viewport.aspect;
+
+    return (
+        <mesh ref={meshRef} scale={[width * 1.1, height * 1.1, 1]}>
+            <planeGeometry />
+            <meshBasicMaterial map={texture} toneMapped={false} side={THREE.DoubleSide} />
+        </mesh>
+    );
+};
+
 export const AvatarCanvas: React.FC<AvatarCanvasProps> = ({
     modelAmplitude,
     userSpeaking,
     connectionState,
 }) => {
+    const { state } = useAppContext();
+
     return (
         <div className="absolute inset-0 z-0 pointer-events-none">
             <Canvas
                 camera={{
-                    // Moved camera closer (Z: 1.2) and adjusted height (Y: 1.6) for a centered portrait shot
                     position: [0, 1.60, 1.2], 
                     fov: 30,
                 }}
             >
-                {/* Lighting Setup */}
                 <ambientLight intensity={0.9} />
                 <directionalLight position={[3, 5, 2]} intensity={1.4} />
                 <pointLight position={[0, 1.3, 1.2]} intensity={1.1} />
 
                 <Suspense fallback={null}>
-                    {/* Avatar Position */}
+                    {/* Key forces re-mount when URL changes to ensure texture update */}
+                    {state.backgroundImage && <Background key={state.backgroundImage} url={state.backgroundImage} />}
+                    
                     <group position={[0, -0.7, 0]}>
                         <Avatar
                             modelAmplitude={modelAmplitude}
                             userSpeaking={userSpeaking}
                             connectionState={connectionState}
+                            manualExpression={state.settings.manualExpression}
                         />
                     </group>
 

@@ -1,12 +1,14 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { AvatarCanvas } from './components/AvatarCanvas';
 import { UI } from './components/UI';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { LoadingSplash } from './components/LoadingSplash';
+import { Onboarding } from './components/Onboarding';
+import { useAppContext } from './context/AppContext';
 
 export default function App() {
+    const { state } = useAppContext();
     const [isLoading, setIsLoading] = useState(true);
     const [loadingMessage, setLoadingMessage] = useState("Initializing...");
 
@@ -45,6 +47,10 @@ export default function App() {
 
     if (isLoading) {
         return <LoadingSplash message={loadingMessage} />;
+    }
+
+    if (!state.settings.hasCompletedOnboarding) {
+        return <Onboarding />;
     }
 
     return (

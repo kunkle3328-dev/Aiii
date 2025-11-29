@@ -26,6 +26,8 @@ export interface Memory {
   [key: string]: any;
 }
 
+export type AvatarExpression = 'neutral' | 'happy' | 'sad' | 'angry' | 'surprised' | 'thinking';
+
 export interface Settings {
     theme: 'light' | 'dark' | 'cyberpunk' | 'holographic';
     avatarStyle: string;
@@ -34,6 +36,8 @@ export interface Settings {
     voice: string;
     voiceSpeed: number;
     voicePitch: number;
+    manualExpression: AvatarExpression;
+    hasCompletedOnboarding: boolean;
 }
 
 export interface TranscriptEntry {
@@ -47,7 +51,7 @@ export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'err
 
 export type ActivePanel = 'tools' | 'calendar' | 'notes' | 'search' | 'memory' | 'settings' | null;
 
-export type ToolTab = 'tasks' | 'calendar' | 'notes';
+export type ToolTab = 'tasks' | 'calendar' | 'notes' | 'studio';
 
 export interface SearchResult {
     text: string;
@@ -72,6 +76,8 @@ export interface AppState {
         result: SearchResult | null;
         error: string | null;
     };
+    backgroundImage: string | null;
+    sentiment: 'positive' | 'negative' | 'neutral' | 'curious' | 'confused';
 }
 
 export type AppAction =
@@ -89,6 +95,9 @@ export type AppAction =
     | { type: 'SEARCH_START' }
     | { type: 'SEARCH_SUCCESS'; payload: SearchResult }
     | { type: 'SEARCH_ERROR'; payload: string }
-    | { type: 'LOAD_STATE'; payload: AppState }
     | { type: 'ADD_TRANSCRIPT_ENTRY'; payload: TranscriptEntry }
-    | { type: 'CLEAR_TRANSCRIPT' };
+    | { type: 'CLEAR_TRANSCRIPT' }
+    | { type: 'LOAD_STATE'; payload: AppState }
+    | { type: 'SET_BACKGROUND_IMAGE'; payload: string | null }
+    | { type: 'SET_SENTIMENT'; payload: AppState['sentiment'] }
+    | { type: 'COMPLETE_ONBOARDING' };

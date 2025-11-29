@@ -9,42 +9,172 @@ export const useAgentRouter = () => {
     const aiRef = useRef<GoogleGenAI | null>(null);
     const lastErrorTimeRef = useRef<number>(0);
 
-    const routeIntent = useCallback(async (userInput: string) => {
+    const getAiClient = () => {
         if (!process.env.API_KEY) {
-            console.error("API key not found for agent router.");
-            return;
+            console.error("API key not found.");
+            return null;
         }
-
         if (!aiRef.current) {
             aiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
         }
+        return aiRef.current;
+    }
+
+    const generateMoodBackground = useCallback(async () => {
+        const ai = getAiClient();
+        if (!ai) return;
+
+        dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "🎨 Analyzing conversation mood to generate background...", timestamp: Date.now() } });
+
+        try {
+            const recentTranscript = state.transcript.slice(-10).map(t => `${t.speaker}: ${t.text}`).join('\n');
+            const analysisPrompt = `Analyze the following conversation and extract 3-5 visual keywords that represent the mood, setting, and topic.
+            Transcript:
+            ${recentTranscript}
+            Return ONLY a comma-separated list of visual keywords (e.g., "cyberpunk city, neon rain, dark blue").`;
+
+            const analysisResponse = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: analysisPrompt,
+            });
+
+            const keywords = analysisResponse.text.trim();
+            const imagePrompt = `A high-quality, abstract, cinematic background image representing: ${keywords}. 
+            Style: Photorealistic, 8k resolution, deep depth of field, ambient lighting. 
+            Aspect Ratio: 1:1 (Square) - designed to be cropped/filled on screens.
+            Crucial: NO text, NO watermarks, NO faces. Just scenery or abstract textures.`;
+
+            const imageResponse = await ai.models.generateContent({
+                model: 'gemini-2.5-flash-image',
+                contents: { parts: [{ text: imagePrompt }] }
+            });
+
+            let base64Image = null;
+            if (imageResponse.candidates && imageResponse.candidates[0].content && imageResponse.candidates[0].content.parts) {
+                for (const part of imageResponse.candidates[0].content.parts) {
+                    if (part.inlineData && part.inlineData.data) {
+                        base64Image = part.inlineData.data;
+                        break;
+                    }
+                }
+            }
+
+            if (base64Image) {
+                const imageUrl = `data:image/png;base64,${base64Image}`;
+                dispatch({ type: 'SET_BACKGROUND_IMAGE', payload: imageUrl });
+                dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "✨ Background updated.", timestamp: Date.now() } });
+            }
+
+        } catch (error: any) {
+            console.error("Background Generation Error:", error);
+            
+            const isRateLimit = 
+                error.message?.includes('429') || 
+                error.status === 'RESOURCE_EXHAUSTED' || 
+                (error.error && error.error.code === 429) ||
+                JSON.stringify(error).includes('RESOURCE_EXHAUSTED');
+
+            if (isRateLimit) {
+                dispatch({ 
+                    type: 'ADD_TRANSCRIPT_ENTRY', 
+                    payload: { 
+                        id: crypto.randomUUID(), 
+                        speaker: 'system', 
+                        text: "⚠️ System Alert: Background generation skipped due to API Quota exceeded.", 
+                        timestamp: Date.now() 
+                    } 
+                });
+            } else {
+                dispatch({ type: 'ADD_TRANSCRIPT_ENTRY', payload: { id: crypto.randomUUID(), speaker: 'system', text: "⚠️ Failed to generate background.", timestamp: Date.now() } });
+            }
+        }
+    }, [state.transcript, dispatch]);
+
+    const analyzeSentiment = useCallback(async (text: string) => {
+         const ai = getAiClient();
+         if (!ai) return;
+
+         try {
+             const response = await ai.models.generateContent({
+                 model: 'gemini-2.5-flash',
+                 contents: `Analyze the sentiment of this text. Return ONLY one of the following words: positive, negative, neutral, curious, confused. Text: "${text}"`
+             });
+             const sentiment = response.text.trim().toLowerCase();
+             if (['positive', 'negative', 'neutral', 'curious', 'confused'].includes(sentiment)) {
+                 dispatch({ type: 'SET_SENTIMENT', payload: sentiment as any });
+             }
+         } catch(e) {
+             console.warn("Sentiment analysis failed", e);
+         }
+    }, [dispatch]);
+
+    // AI Studio Tools
+    const generateCode = useCallback(async (prompt: string) => {
+        const ai = getAiClient();
+        if (!ai) return "Error: No API Client";
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: `Write code for: ${prompt}. Return ONLY the code, no markdown explanations.`
+            });
+            return response.text;
+        } catch (e: any) { return "Error generating code: " + e.message; }
+    }, []);
+
+    const summarizeContent = useCallback(async (text: string) => {
+        const ai = getAiClient();
+        if (!ai) return "Error: No API Client";
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: `Summarize this text concisely: ${text}`
+            });
+            return response.text;
+        } catch (e: any) { return "Error summarizing: " + e.message; }
+    }, []);
+
+    const creativeWrite = useCallback(async (prompt: string) => {
+        const ai = getAiClient();
+        if (!ai) return "Error: No API Client";
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: `Write a creative piece based on: ${prompt}`
+            });
+            return response.text;
+        } catch (e: any) { return "Error writing: " + e.message; }
+    }, []);
+
+
+    const routeIntent = useCallback(async (userInput: string) => {
+        const ai = getAiClient();
+        if (!ai) return;
+        
+        // Trigger sentiment analysis in parallel
+        analyzeSentiment(userInput);
 
         const isSearchEnabled = state.settings.googleSearchEnabled;
 
-        const systemInstruction = `You are the routing agent for a conversational AI. Your job is to analyze the user's input and determine which tool to use.
-Respond ONLY with a JSON object matching the response schema. Do not add any commentary or markdown formatting.
-
-Current context:
-- User Memory: ${JSON.stringify(state.memory)}
-- Existing Tasks: ${JSON.stringify(state.tasks)}
+        const systemInstruction = `You are the routing agent for a conversational AI.
+Respond ONLY with a JSON object matching the response schema.
 
 User Input: "${userInput}"
 
 Determine the correct agent and action.
-- For tasks, use "tasks" agent. Actions: "add", "list", "complete", "delete".
-- For notes, use "notes" agent. Actions: "add", "list", "update".
-- For calendar, use "calendar" agent. Actions: "add", "list".
-- For memory updates, use "memory" agent. Action: "update".
-- For general conversation, use "conversation" agent. Action: "chat".
-${isSearchEnabled ? '- For search queries about recent events, trending topics, or information that needs to be up-to-date, use "search" agent. Action: "query".' : ''}
+- For tasks: "tasks" -> "add", "list", "complete", "delete".
+- For notes: "notes" -> "add", "list", "update".
+- For calendar: "calendar" -> "add", "list".
+- For memory: "memory" -> "update".
+- For conversation: "conversation" -> "chat".
+${isSearchEnabled ? '- For search: "search" -> "query".' : ''}
 
-If adding a task, note or event, generate a suitable title and content.
-If adding a calendar event, infer start and end times. Assume duration is 1 hour if not specified.
-If updating memory, specify the key and new value.
+Payload details:
+- Task/Note/Query text goes in "text".
+- Calendar events need "start" and "end" (ISO strings).
 `;
 
         try {
-            const response = await aiRef.current.models.generateContent({
+            const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: systemInstruction,
                 config: {
@@ -57,13 +187,13 @@ If updating memory, specify the key and new value.
                             payload: {
                                 type: Type.OBJECT,
                                 properties: {
-                                    id: { type: Type.STRING, description: "ID of item to modify" },
-                                    text: { type: Type.STRING, description: "Content for task, note, or search query" },
-                                    title: { type: Type.STRING, description: "Title for note or event" },
-                                    start: { type: Type.STRING, description: "ISO date string for event start" },
-                                    end: { type: Type.STRING, description: "ISO date string for event end" },
-                                    key: { type: Type.STRING, description: "Key for memory update" },
-                                    value: { type: Type.STRING, description: "Value for memory update" },
+                                    id: { type: Type.STRING },
+                                    text: { type: Type.STRING },
+                                    title: { type: Type.STRING },
+                                    start: { type: Type.STRING },
+                                    end: { type: Type.STRING },
+                                    key: { type: Type.STRING },
+                                    value: { type: Type.STRING },
                                 },
                             },
                         },
@@ -73,9 +203,6 @@ If updating memory, specify the key and new value.
 
             const resultText = response.text.trim();
             const routedAction = JSON.parse(resultText);
-
-            console.log("Agent Router Decision:", routedAction);
-
             const { agent, action, payload } = routedAction;
 
             switch (agent) {
@@ -104,15 +231,11 @@ If updating memory, specify the key and new value.
                        dispatch({type: 'UPDATE_MEMORY', payload: {[payload.key]: payload.value}})
                     }
                     break;
-                case 'conversation':
-                    // Handled by the live agent
-                    break;
                 case 'search':
-                    // Double check enabling to prevent bypass
                     if (isSearchEnabled && action === 'query' && payload.text) {
                         dispatch({ type: 'SEARCH_START' });
                         try {
-                            const searchResponse = await aiRef.current.models.generateContent({
+                            const searchResponse = await ai.models.generateContent({
                                 model: "gemini-2.5-flash",
                                 contents: payload.text,
                                 config: {
@@ -127,23 +250,16 @@ If updating memory, specify the key and new value.
 
                             const result: SearchResult = { text, sources };
                             dispatch({ type: 'SEARCH_SUCCESS', payload: result });
-
-                            // Inject search result directly into conversation transcript
+                            
                             const formattedSources = sources.map((s, i) => `[${i+1}] ${s.title}`).join('\n');
                             const transcriptText = `🔎 **I found this:**\n${text}\n\n**Sources:**\n${formattedSources}`;
                             
                             dispatch({
                                 type: 'ADD_TRANSCRIPT_ENTRY',
-                                payload: {
-                                    id: crypto.randomUUID(),
-                                    speaker: 'model', 
-                                    text: transcriptText,
-                                    timestamp: Date.now()
-                                }
+                                payload: { id: crypto.randomUUID(), speaker: 'model', text: transcriptText, timestamp: Date.now() }
                             });
 
                         } catch(e) {
-                            console.error("Search API call failed", e);
                             dispatch({ type: 'SEARCH_ERROR', payload: 'An error occurred during the search.' });
                         }
                     }
@@ -151,24 +267,21 @@ If updating memory, specify the key and new value.
             }
 
         } catch (error: any) {
-            // Handle Quota/Rate Limit Errors
-            const isRateLimit = 
+             const isRateLimit = 
                 error.message?.includes('429') || 
                 error.status === 'RESOURCE_EXHAUSTED' || 
                 (error.error && error.error.code === 429) ||
                 JSON.stringify(error).includes('RESOURCE_EXHAUSTED');
 
             if (isRateLimit) {
-                console.warn("Agent Router Rate Limit Exceeded (429)");
                 const now = Date.now();
-                // Throttle alerts: only show one every 60 seconds
                 if (now - lastErrorTimeRef.current > 60000) {
                     dispatch({
                         type: 'ADD_TRANSCRIPT_ENTRY',
                         payload: {
                             id: crypto.randomUUID(),
                             speaker: 'system',
-                            text: "⚠️ System Alert: API Quota exceeded. The smart agent features are temporarily paused. Please check your billing or try again later.",
+                            text: "⚠️ System Alert: API Quota exceeded.",
                             timestamp: now
                         }
                     });
@@ -179,7 +292,7 @@ If updating memory, specify the key and new value.
             }
         }
 
-    }, [state.memory, state.tasks, state.settings.googleSearchEnabled, dispatch]);
+    }, [state.memory, state.tasks, state.settings.googleSearchEnabled, dispatch, analyzeSentiment]);
 
-    return { routeIntent };
+    return { routeIntent, generateMoodBackground, generateCode, summarizeContent, creativeWrite };
 };

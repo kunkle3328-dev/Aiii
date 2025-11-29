@@ -177,10 +177,12 @@ export const useGeminiLive = () => {
                 callbacks: {
                     onopen: () => {
                         setConnectionState('connected');
-                        const source = inputAudioContextRef.current!.createMediaStreamSource(mediaStreamRef.current!);
-                        scriptProcessorRef.current = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
+                        if (!inputAudioContextRef.current || !mediaStreamRef.current) return;
+
+                        const source = inputAudioContextRef.current.createMediaStreamSource(mediaStreamRef.current);
+                        scriptProcessorRef.current = inputAudioContextRef.current.createScriptProcessor(4096, 1, 1);
                         
-                        userAnalyzerRef.current = inputAudioContextRef.current!.createAnalyser();
+                        userAnalyzerRef.current = inputAudioContextRef.current.createAnalyser();
                         userAnalyzerRef.current.fftSize = 256;
                         
                         scriptProcessorRef.current.onaudioprocess = (audioProcessingEvent) => {
@@ -203,7 +205,7 @@ export const useGeminiLive = () => {
                         };
                         
                         source.connect(scriptProcessorRef.current);
-                        scriptProcessorRef.current.connect(inputAudioContextRef.current!.destination); // Connect to destination to keep it alive
+                        scriptProcessorRef.current.connect(inputAudioContextRef.current.destination); // Connect to destination to keep it alive
                         source.connect(userAnalyzerRef.current);
                         
                         analyzeAudio();
@@ -242,24 +244,34 @@ export const useGeminiLive = () => {
                         // Handle audio playback
                         const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
                         if (base64Audio && !isMuted) {
-                            const audioBuffer = await decodeAudioData(
-                                decode(base64Audio),
-                                outputAudioContextRef.current!,
-                                24000,
-                                1
-                            );
-                            
-                            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputAudioContextRef.current!.currentTime);
-                            
-                            const source = outputAudioContextRef.current!.createBufferSource();
-                            source.buffer = audioBuffer;
-                            source.connect(outputNode);
-                            source.addEventListener('ended', () => {
-                                sourcesRef.current.delete(source);
-                            });
-                            source.start(nextStartTimeRef.current);
-                            nextStartTimeRef.current += audioBuffer.duration;
-                            sourcesRef.current.add(source);
+                            // Guard clause: Ensure AudioContext exists and is running
+                            if (!outputAudioContextRef.current || outputAudioContextRef.current.state === 'closed') return;
+
+                            try {
+                                const audioBuffer = await decodeAudioData(
+                                    decode(base64Audio),
+                                    outputAudioContextRef.current,
+                                    24000,
+                                    1
+                                );
+                                
+                                // Check again after await to ensure context wasn't closed during decoding
+                                if (!outputAudioContextRef.current || outputAudioContextRef.current.state === 'closed') return;
+
+                                nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputAudioContextRef.current.currentTime);
+                                
+                                const source = outputAudioContextRef.current.createBufferSource();
+                                source.buffer = audioBuffer;
+                                source.connect(outputNode);
+                                source.addEventListener('ended', () => {
+                                    sourcesRef.current.delete(source);
+                                });
+                                source.start(nextStartTimeRef.current);
+                                nextStartTimeRef.current += audioBuffer.duration;
+                                sourcesRef.current.add(source);
+                            } catch (e) {
+                                console.warn("Audio processing error:", e);
+                            }
                         }
 
                         if(message.serverContent?.interrupted){
